@@ -48,6 +48,11 @@ export default function GeneratePage() {
         source_preview: content.slice(0, 200),
       });
 
+      // If flashcards, parse and save to flashcards table
+      if (selectedType === "flashcards") {
+        await parseAndSaveFlashcards(res, content);
+      }
+
       toast({ title: "Material gerado!", description: "Seu material de estudo está pronto e foi salvo." });
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Erro ao gerar material", variant: "destructive" });
