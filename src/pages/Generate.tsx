@@ -18,6 +18,33 @@ const materialTypes = [
 const MAX_CHUNK_SIZE = 15 * 1024 * 1024; // 15MB per chunk
 
 export default function GeneratePage() {
+  const parseAndSaveFlashcards = async (markdown: string, sourceContent: string) => {
+    const cards: { front: string; back: string }[] = [];
+    const lines = markdown.split('\n');
+    let currentQ = '';
+    let currentA = '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const qMatch = trimmed.match(/^\*?\*?(?:Pergunta|P|Q|\d+[\.\)])\s*:?\*?\*?\s*(.+)/i);
+      const aMatch = trimmed.match(/^\*?\*?(?:Resposta|R|A)\s*:?\*?\*?\s*(.+)/i);
+      if (qMatch) {
+        if (currentQ && currentA) cards.push({ front: currentQ, back: currentA });
+        currentQ = qMatch[1].trim();
+        currentA = '';
+      } else if (aMatch) {
+        currentA = aMatch[1].trim();
+      }
+    }
+    if (currentQ && currentA) cards.push({ front: currentQ, back: currentA });
+    if (cards.length > 0) {
+      const subject = sourceContent.slice(0, 30).replace(/[^a-zA-ZÀ-ÿ\s]/g, '').trim() || 'Geral';
+      await supabase.from('flashcards').insert(cards.map(c => ({
+        front: c.front, back: c.back, subject, next_review: new Date().toISOString(),
+      })));
+      toast({ title: `${cards.length} flashcards salvos!`, description: 'Disponíveis na página de Flashcards.' });
+    }
+  };
+
   const [content, setContent] = useState("");
   const [selectedType, setSelectedType] = useState("summary");
   const [result, setResult] = useState("");
