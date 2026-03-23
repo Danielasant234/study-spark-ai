@@ -15,12 +15,15 @@ const materialTypes = [
   { id: "mindmap", label: "Mapa Mental", icon: Network, description: "Organização hierárquica de conceitos" },
 ];
 
+const MAX_CHUNK_SIZE = 15 * 1024 * 1024; // 15MB per chunk
+
 export default function GeneratePage() {
   const [content, setContent] = useState("");
   const [selectedType, setSelectedType] = useState("summary");
   const [result, setResult] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState("");
   const [copied, setCopied] = useState(false);
   const headerRef = useReveal();
   const formRef = useReveal();
@@ -37,7 +40,6 @@ export default function GeneratePage() {
       const res = await generateMaterial(content, selectedType);
       setResult(res);
 
-      // Save to database
       const typeLabel = materialTypes.find((t) => t.id === selectedType)?.label || selectedType;
       await supabase.from("generated_materials").insert({
         title: `${typeLabel} - ${content.slice(0, 50)}...`,
@@ -84,37 +86,74 @@ export default function GeneratePage() {
         variant: "destructive",
       });
     }
+    // Reset input so same file can be selected again
+    e.target.value = "";
+  };
+
+  const sendAudioChunk = async (chunk: Blob, mimeType: string, chunkIndex?: number, totalChunks?: number): Promise<string> => {
+    const formData = new FormData();
+    formData.append("audio", new File([chunk], `chunk.${mimeType.includes("wav") ? "wav" : "mp3"}`, { type: mimeType }));
+    if (chunkIndex !== undefined && totalChunks !== undefined) {
+      formData.append("chunkIndex", String(chunkIndex));
+      formData.append("totalChunks", String(totalChunks));
+    }
+
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || `Erro ao transcrever áudio (${resp.status})`);
+    }
+
+    const data = await resp.json();
+    return data.transcription;
   };
 
   const handleAudioTranscription = async (file: File) => {
     setIsTranscribing(true);
-    toast({ title: "Transcrevendo áudio...", description: `Processando ${file.name}. Isso pode levar alguns minutos.` });
+    const mimeType = file.type || "audio/mpeg";
 
     try {
-      const formData = new FormData();
-      formData.append("audio", file);
+      if (file.size <= MAX_CHUNK_SIZE) {
+        // Small file - send directly
+        setTranscriptionProgress("Transcrevendo áudio...");
+        const transcription = await sendAudioChunk(file, mimeType);
+        setContent(transcription);
+        toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo de conteúdo." });
+      } else {
+        // Large file - split into chunks
+        const totalChunks = Math.ceil(file.size / MAX_CHUNK_SIZE);
+        toast({ title: "Áudio grande detectado", description: `Dividindo em ${totalChunks} partes para processamento.` });
 
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: formData,
-      });
+        let fullTranscription = "";
 
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || "Erro ao transcrever áudio");
+        for (let i = 0; i < totalChunks; i++) {
+          setTranscriptionProgress(`Transcrevendo parte ${i + 1} de ${totalChunks}...`);
+          const start = i * MAX_CHUNK_SIZE;
+          const end = Math.min(start + MAX_CHUNK_SIZE, file.size);
+          const chunk = file.slice(start, end, mimeType);
+
+          const chunkTranscription = await sendAudioChunk(chunk, mimeType, i, totalChunks);
+          fullTranscription += (fullTranscription ? "\n\n" : "") + chunkTranscription;
+
+          // Update content progressively
+          setContent(fullTranscription);
+        }
+
+        toast({ title: "Áudio transcrito!", description: `${totalChunks} partes processadas com sucesso.` });
       }
-
-      const data = await resp.json();
-      setContent(data.transcription);
-      toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo de conteúdo." });
     } catch (e: any) {
       toast({ title: "Erro na transcrição", description: e.message, variant: "destructive" });
     } finally {
       setIsTranscribing(false);
+      setTranscriptionProgress("");
     }
   };
 
@@ -160,7 +199,7 @@ export default function GeneratePage() {
               disabled={isTranscribing}
               className="w-full rounded-xl border border-border bg-card p-4 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none transition-shadow focus:shadow-md focus:border-primary/30 disabled:opacity-50"
             />
-            {content && (
+            {content && !isTranscribing && (
               <button
                 onClick={() => setContent("")}
                 className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -185,7 +224,7 @@ export default function GeneratePage() {
           {isTranscribing && (
             <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm text-primary">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Transcrevendo áudio... isso pode levar alguns minutos
+              {transcriptionProgress || "Transcrevendo áudio..."}
             </div>
           )}
 
