@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { FileText, Layers, PenTool, Network, Loader2, Copy, Check, Upload } from "lucide-react";
+import { useState, useRef } from "react";
+import { FileText, Layers, PenTool, Network, Loader2, Copy, Check, Upload, Download, Mic, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useReveal } from "@/hooks/useReveal";
 import { generateMaterial } from "@/lib/ai";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { downloadMarkdownAsPdf } from "@/lib/pdf";
 
 const materialTypes = [
   { id: "summary", label: "Resumo", icon: FileText, description: "Resumo estruturado com conceitos-chave" },
@@ -18,9 +20,11 @@ export default function GeneratePage() {
   const [selectedType, setSelectedType] = useState("summary");
   const [result, setResult] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [copied, setCopied] = useState(false);
   const headerRef = useReveal();
   const formRef = useReveal();
+  const resultRef = useRef<HTMLDivElement>(null);
 
   const handleGenerate = async () => {
     if (!content.trim()) {
@@ -32,7 +36,17 @@ export default function GeneratePage() {
     try {
       const res = await generateMaterial(content, selectedType);
       setResult(res);
-      toast({ title: "Material gerado!", description: "Seu material de estudo está pronto." });
+
+      // Save to database
+      const typeLabel = materialTypes.find((t) => t.id === selectedType)?.label || selectedType;
+      await supabase.from("generated_materials").insert({
+        title: `${typeLabel} - ${content.slice(0, 50)}...`,
+        type: selectedType,
+        content: res,
+        source_preview: content.slice(0, 200),
+      });
+
+      toast({ title: "Material gerado!", description: "Seu material de estudo está pronto e foi salvo." });
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Erro ao gerar material", variant: "destructive" });
     } finally {
@@ -46,6 +60,13 @@ export default function GeneratePage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleDownloadPdf = () => {
+    if (!result) return;
+    const typeLabel = materialTypes.find((t) => t.id === selectedType)?.label || "Material";
+    const html = resultRef.current?.innerHTML || "";
+    downloadMarkdownAsPdf(`${typeLabel} - StudyAI`, html);
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -54,8 +75,46 @@ export default function GeneratePage() {
       const text = await file.text();
       setContent(text);
       toast({ title: "Arquivo carregado", description: file.name });
+    } else if (file.type.startsWith("audio/") || file.name.match(/\.(mp3|wav|m4a|ogg|webm|aac|flac)$/i)) {
+      await handleAudioTranscription(file);
     } else {
-      toast({ title: "Formato não suportado", description: "Use arquivos .txt ou .md por enquanto. Suporte a PDF em breve!", variant: "destructive" });
+      toast({
+        title: "Formato não suportado",
+        description: "Use arquivos .txt, .md ou áudio (mp3, wav, m4a, ogg).",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAudioTranscription = async (file: File) => {
+    setIsTranscribing(true);
+    toast({ title: "Transcrevendo áudio...", description: `Processando ${file.name}. Isso pode levar alguns minutos.` });
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", file);
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: formData,
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || "Erro ao transcrever áudio");
+      }
+
+      const data = await resp.json();
+      setContent(data.transcription);
+      toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo de conteúdo." });
+    } catch (e: any) {
+      toast({ title: "Erro na transcrição", description: e.message, variant: "destructive" });
+    } finally {
+      setIsTranscribing(false);
     }
   };
 
@@ -63,7 +122,7 @@ export default function GeneratePage() {
     <div className="space-y-6">
       <div ref={headerRef} className="reveal">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Gerar Materiais</h1>
-        <p className="text-sm text-muted-foreground">Cole seu conteúdo e a IA gera materiais de estudo automaticamente</p>
+        <p className="text-sm text-muted-foreground">Cole texto, envie áudio ou arquivo e a IA gera materiais de estudo</p>
       </div>
 
       <div ref={formRef} className="reveal grid gap-6 lg:grid-cols-2" style={{ transitionDelay: "100ms" }}>
@@ -98,18 +157,41 @@ export default function GeneratePage() {
               onChange={(e) => setContent(e.target.value)}
               placeholder="Cole aqui o conteúdo da aula, texto, transcrição ou anotações..."
               rows={12}
-              className="w-full rounded-xl border border-border bg-card p-4 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none transition-shadow focus:shadow-md focus:border-primary/30"
+              disabled={isTranscribing}
+              className="w-full rounded-xl border border-border bg-card p-4 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none transition-shadow focus:shadow-md focus:border-primary/30 disabled:opacity-50"
             />
-            <label className="absolute bottom-3 right-3 flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
-              <Upload className="h-3.5 w-3.5" />
-              Upload
-              <input type="file" accept=".txt,.md" className="hidden" onChange={handleFileUpload} />
-            </label>
+            {content && (
+              <button
+                onClick={() => setContent("")}
+                className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <div className="absolute bottom-3 right-3 flex gap-2">
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <Mic className="h-3.5 w-3.5" />
+                Áudio
+                <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm,.aac,.flac" className="hidden" onChange={handleFileUpload} />
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <Upload className="h-3.5 w-3.5" />
+                Texto
+                <input type="file" accept=".txt,.md" className="hidden" onChange={handleFileUpload} />
+              </label>
+            </div>
           </div>
+
+          {isTranscribing && (
+            <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm text-primary">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Transcrevendo áudio... isso pode levar alguns minutos
+            </div>
+          )}
 
           <button
             onClick={handleGenerate}
-            disabled={isLoading || !content.trim()}
+            disabled={isLoading || isTranscribing || !content.trim()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98]"
           >
             {isLoading ? (
@@ -131,18 +213,30 @@ export default function GeneratePage() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h3 className="text-sm font-semibold text-foreground">Resultado</h3>
             {result && (
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Copiado!" : "Copiar"}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copiado!" : "Copiar"}
+                </button>
+                <button
+                  onClick={handleDownloadPdf}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  PDF
+                </button>
+              </div>
             )}
           </div>
           <div className="max-h-[500px] overflow-y-auto p-4">
             {result ? (
-              <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-primary">
+              <div
+                ref={resultRef}
+                className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-primary"
+              >
                 <ReactMarkdown>{result}</ReactMarkdown>
               </div>
             ) : (
