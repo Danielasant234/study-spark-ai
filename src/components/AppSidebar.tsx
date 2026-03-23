@@ -1,4 +1,4 @@
-import { BookOpen, Brain, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers } from "lucide-react";
+import { BookOpen, Brain, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -6,6 +6,7 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/subjects", icon: BookOpen, label: "Matérias" },
   { to: "/flashcards", icon: Layers, label: "Flashcards" },
+  { to: "/generate", icon: Wand2, label: "Gerar Material" },
   { to: "/summaries", icon: FileText, label: "Resumos" },
   { to: "/chat", icon: MessageCircle, label: "Assistente IA" },
 ];

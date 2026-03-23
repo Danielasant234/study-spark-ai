@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Subjects from "./pages/Subjects";
 import Flashcards from "./pages/Flashcards";
 import Summaries from "./pages/Summaries";
+import GeneratePage from "./pages/Generate";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/subjects" element={<Subjects />} />
             <Route path="/flashcards" element={<Flashcards />} />
+            <Route path="/generate" element={<GeneratePage />} />
             <Route path="/summaries" element={<Summaries />} />
             <Route path="/chat" element={<Chat />} />
           </Route>
