@@ -38,6 +38,71 @@ export type Database = {
         }
         Relationships: []
       }
+      flashcards: {
+        Row: {
+          back: string
+          created_at: string
+          difficulty: number
+          ease_factor: number
+          front: string
+          id: string
+          interval: number
+          last_reviewed: string | null
+          next_review: string
+          repetitions: number
+          source_material_id: string | null
+          subject: string
+          theme: string | null
+          times_correct: number
+          times_incorrect: number
+          total_time_ms: number
+        }
+        Insert: {
+          back: string
+          created_at?: string
+          difficulty?: number
+          ease_factor?: number
+          front: string
+          id?: string
+          interval?: number
+          last_reviewed?: string | null
+          next_review?: string
+          repetitions?: number
+          source_material_id?: string | null
+          subject?: string
+          theme?: string | null
+          times_correct?: number
+          times_incorrect?: number
+          total_time_ms?: number
+        }
+        Update: {
+          back?: string
+          created_at?: string
+          difficulty?: number
+          ease_factor?: number
+          front?: string
+          id?: string
+          interval?: number
+          last_reviewed?: string | null
+          next_review?: string
+          repetitions?: number
+          source_material_id?: string | null
+          subject?: string
+          theme?: string | null
+          times_correct?: number
+          times_incorrect?: number
+          total_time_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcards_source_material_id_fkey"
+            columns: ["source_material_id"]
+            isOneToOne: false
+            referencedRelation: "generated_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_materials: {
         Row: {
           content: string
@@ -62,6 +127,45 @@ export type Database = {
           source_preview?: string | null
           title?: string
           type?: string
+        }
+        Relationships: []
+      }
+      review_sessions: {
+        Row: {
+          cards_reviewed: Json
+          correct: number
+          ended_at: string | null
+          id: string
+          incorrect: number
+          mode: string
+          started_at: string
+          subject: string | null
+          total_cards: number
+          total_time_ms: number
+        }
+        Insert: {
+          cards_reviewed?: Json
+          correct?: number
+          ended_at?: string | null
+          id?: string
+          incorrect?: number
+          mode?: string
+          started_at?: string
+          subject?: string | null
+          total_cards?: number
+          total_time_ms?: number
+        }
+        Update: {
+          cards_reviewed?: Json
+          correct?: number
+          ended_at?: string | null
+          id?: string
+          incorrect?: number
+          mode?: string
+          started_at?: string
+          subject?: string | null
+          total_cards?: number
+          total_time_ms?: number
         }
         Relationships: []
       }
