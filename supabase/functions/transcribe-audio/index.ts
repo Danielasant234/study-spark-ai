@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,17 +23,27 @@ serve(async (req) => {
       });
     }
 
-    // Convert audio to base64 for the AI model
-    const arrayBuffer = await audioFile.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binary = "";
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64Audio = btoa(binary);
+    // Check if this is a chunk or full file
+    const chunkIndex = formData.get("chunkIndex");
+    const totalChunks = formData.get("totalChunks");
+    const isChunked = chunkIndex !== null && totalChunks !== null;
 
-    // Determine MIME type
+    // Use efficient base64 encoding (no string concatenation)
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const base64Audio = base64Encode(new Uint8Array(arrayBuffer));
+
     const mimeType = audioFile.type || "audio/mpeg";
+
+    const systemPrompt = isChunked
+      ? `Você é um transcritor profissional. Transcreva o áudio com precisão total em português brasileiro.
+Este é o trecho ${Number(chunkIndex) + 1} de ${totalChunks} de um áudio longo.
+Transcreva APENAS o conteúdo deste trecho. Organize em parágrafos lógicos.
+Se houver múltiplos falantes, indique com "Falante 1:", "Falante 2:", etc.
+NÃO adicione resumo ou conceitos-chave neste trecho.`
+      : `Você é um transcritor profissional. Transcreva o áudio com precisão total em português brasileiro. 
+Organize a transcrição em parágrafos lógicos. Se houver múltiplos falantes, indique com "Falante 1:", "Falante 2:", etc.
+Ao final, adicione uma seção "## Resumo" com os pontos principais do áudio.
+Ao final do resumo, adicione "## Conceitos-chave" listando os conceitos mais importantes mencionados.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -43,13 +54,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          {
-            role: "system",
-            content: `Você é um transcritor profissional. Transcreva o áudio com precisão total em português brasileiro. 
-Organize a transcrição em parágrafos lógicos. Se houver múltiplos falantes, indique com "Falante 1:", "Falante 2:", etc.
-Ao final, adicione uma seção "## Resumo" com os pontos principais do áudio.
-Ao final do resumo, adicione "## Conceitos-chave" listando os conceitos mais importantes mencionados.`,
-          },
+          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
@@ -62,7 +67,9 @@ Ao final do resumo, adicione "## Conceitos-chave" listando os conceitos mais imp
               },
               {
                 type: "text",
-                text: "Transcreva este áudio de forma completa e organizada.",
+                text: isChunked
+                  ? `Transcreva este trecho ${Number(chunkIndex) + 1} de ${totalChunks} do áudio.`
+                  : "Transcreva este áudio de forma completa e organizada.",
               },
             ],
           },
@@ -72,7 +79,7 @@ Ao final do resumo, adicione "## Conceitos-chave" listando os conceitos mais imp
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), {
+        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

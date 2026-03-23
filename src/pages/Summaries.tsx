@@ -5,7 +5,6 @@ import { useReveal } from "@/hooks/useReveal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { downloadMarkdownAsPdf } from "@/lib/pdf";
-import { cn } from "@/lib/utils";
 
 const typeIcons: Record<string, any> = {
   summary: FileText,
@@ -35,7 +34,6 @@ export default function Summaries() {
   const [loading, setLoading] = useState(true);
   const [viewingMaterial, setViewingMaterial] = useState<Material | null>(null);
   const headerRef = useReveal();
-  const listRef = useReveal();
 
   useEffect(() => {
     loadMaterials();
@@ -60,7 +58,6 @@ export default function Summaries() {
   };
 
   const handleDownloadPdf = (material: Material) => {
-    // Convert markdown to simple HTML for PDF
     const html = material.content
       .replace(/^### (.*$)/gm, '<h3>$1</h3>')
       .replace(/^## (.*$)/gm, '<h2>$1</h2>')
@@ -129,7 +126,8 @@ export default function Summaries() {
         <p className="text-sm text-muted-foreground">Resumos, flashcards, exercícios e mapas mentais gerados pela IA</p>
       </div>
 
-      <div ref={listRef} className="reveal space-y-3" style={{ transitionDelay: "100ms" }}>
+      {/* Removed reveal class from this div to fix the back-button visibility bug */}
+      <div className="space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
