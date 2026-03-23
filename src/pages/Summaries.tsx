@@ -60,20 +60,18 @@ export default function Summaries() {
   };
 
   const handleDownloadPdf = (material: Material) => {
-    const tempDiv = document.createElement("div");
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-
-    // Use a simple approach: render markdown to HTML string
-    import("react-dom/server").then(({ renderToString }) => {
-      import("react-markdown").then(({ default: ReactMarkdown }) => {
-        import("react").then(({ createElement }) => {
-          const html = renderToString(createElement(ReactMarkdown, null, material.content));
-          downloadMarkdownAsPdf(material.title, html);
-          document.body.removeChild(container);
-        });
-      });
-    });
+    // Convert markdown to simple HTML for PDF
+    const html = material.content
+      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^- (.*$)/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+    downloadMarkdownAsPdf(material.title, `<p>${html}</p>`);
   };
 
   const formatDate = (dateStr: string) => {
