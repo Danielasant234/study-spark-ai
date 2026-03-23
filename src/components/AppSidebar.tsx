@@ -6,6 +6,7 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/subjects", icon: BookOpen, label: "Matérias" },
   { to: "/flashcards", icon: Layers, label: "Flashcards" },
+  { to: "/generate", icon: Wand2, label: "Gerar Material" },
   { to: "/summaries", icon: FileText, label: "Resumos" },
   { to: "/chat", icon: MessageCircle, label: "Assistente IA" },
 ];
