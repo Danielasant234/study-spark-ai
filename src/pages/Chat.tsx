@@ -1,18 +1,18 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Brain, User, Sparkles } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Brain, User, Sparkles, Trash2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useReveal } from "@/hooks/useReveal";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import { streamChat, type Message } from "@/lib/ai";
+import { toast } from "@/hooks/use-toast";
 
 const suggestions = [
   "Explique o princípio da separação dos poderes",
-  "Gere 5 exercícios sobre derivadas",
-  "Resuma a Era Vargas em tópicos",
-  "Crie um plano de estudos semanal",
+  "Gere 5 exercícios sobre derivadas com gabarito",
+  "Resuma a Era Vargas em tópicos organizados",
+  "Crie um plano de estudos semanal para o ENEM",
+  "Faça um mapa mental sobre fotossíntese",
+  "Crie flashcards sobre a Revolução Francesa",
 ];
 
 export default function Chat() {
@@ -20,44 +20,77 @@ export default function Chat() {
     {
       role: "assistant",
       content:
-        "Olá! Sou seu assistente de estudos com IA. Posso ajudar com dúvidas, gerar exercícios, criar resumos e montar planos de estudo. Como posso te ajudar?",
+        "Olá! 👋 Sou o **StudyAI**, seu assistente de estudos inteligente.\n\nPosso te ajudar com:\n- 📚 **Explicações** claras sobre qualquer tema\n- ✏️ **Exercícios** com gabarito\n- 📝 **Resumos** estruturados\n- 🧠 **Flashcards** para revisão\n- 📅 **Planos de estudo** personalizados\n- 🗺️ **Mapas mentais** textuais\n\nComo posso te ajudar hoje?",
     },
   ]);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const headerRef = useReveal();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const send = (text: string) => {
-    if (!text.trim()) return;
+  const send = useCallback(async (text: string) => {
+    if (!text.trim() || isStreaming) return;
     const userMsg: Message = { role: "user", content: text.trim() };
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
-    setIsTyping(true);
+    setIsStreaming(true);
 
-    // Simulated response
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "Esta é uma resposta de demonstração. Para respostas reais, habilite o **Lovable Cloud** para integrar com IA generativa. A IA poderá responder dúvidas, gerar exercícios personalizados e criar materiais de estudo sob demanda.",
-        },
-      ]);
-      setIsTyping(false);
-    }, 1200);
+    let assistantContent = "";
+
+    const updateAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && prev.length === newMessages.length + 1) {
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantContent } : m));
+        }
+        return [...prev, { role: "assistant", content: assistantContent }];
+      });
+    };
+
+    await streamChat({
+      messages: newMessages,
+      onDelta: updateAssistant,
+      onDone: () => {
+        setIsStreaming(false);
+        inputRef.current?.focus();
+      },
+      onError: (error) => {
+        setIsStreaming(false);
+        toast({ title: "Erro", description: error, variant: "destructive" });
+      },
+    });
+  }, [messages, isStreaming]);
+
+  const clearChat = () => {
+    setMessages([{
+      role: "assistant",
+      content: "Chat limpo! Como posso te ajudar?",
+    }]);
   };
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div ref={headerRef} className="reveal flex-shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Assistente IA</h1>
-        <p className="text-sm text-muted-foreground">Tire dúvidas e gere materiais de estudo</p>
+      <div ref={headerRef} className="reveal flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Assistente IA</h1>
+          <p className="text-sm text-muted-foreground">Tire dúvidas e gere materiais de estudo em tempo real</p>
+        </div>
+        {messages.length > 1 && (
+          <button
+            onClick={clearChat}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Limpar
+          </button>
+        )}
       </div>
 
       {/* Messages */}
@@ -65,10 +98,7 @@ export default function Chat() {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={cn(
-              "flex gap-3",
-              msg.role === "user" ? "justify-end" : "justify-start"
-            )}
+            className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
           >
             {msg.role === "assistant" && (
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
@@ -83,7 +113,13 @@ export default function Chat() {
                   : "bg-card border border-border text-foreground shadow-sm"
               )}
             >
-              {msg.content}
+              {msg.role === "assistant" ? (
+                <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-primary prose-code:bg-primary/5 prose-code:px-1 prose-code:rounded">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              ) : (
+                msg.content
+              )}
             </div>
             {msg.role === "user" && (
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
@@ -92,7 +128,7 @@ export default function Chat() {
             )}
           </div>
         ))}
-        {isTyping && (
+        {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
           <div className="flex gap-3">
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <Brain className="h-4 w-4 text-primary" />
@@ -130,17 +166,19 @@ export default function Chat() {
             e.preventDefault();
             send(input);
           }}
-          className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-sm"
+          className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-sm transition-shadow focus-within:shadow-md"
         >
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Digite sua pergunta..."
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            disabled={isStreaming}
+            className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={!input.trim()}
+            disabled={!input.trim() || isStreaming}
             className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-200 hover:bg-primary/90 disabled:opacity-40 active:scale-95"
           >
             <Send className="h-4 w-4" />
