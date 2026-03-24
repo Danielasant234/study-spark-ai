@@ -4,7 +4,7 @@ import {
   BarChart3, Brain, Zap, Target, Clock, Filter, Layers, ArrowLeft,
   Trophy, Flame, TrendingUp,
 } from "lucide-react";
-import { useReveal } from "@/hooks/useReveal";
+
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateSM2, isDueForReview, getMasteryLevel, MASTERY_COLORS, MASTERY_LABELS } from "@/lib/sm2";
