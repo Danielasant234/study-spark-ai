@@ -1,4 +1,4 @@
-import { BookOpen, Brain, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2 } from "lucide-react";
+import { BookOpen, Brain, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2, Mic } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
