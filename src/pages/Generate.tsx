@@ -18,30 +18,51 @@ const materialTypes = [
 const MAX_CHUNK_SIZE = 15 * 1024 * 1024; // 15MB per chunk
 
 export default function GeneratePage() {
-  const parseAndSaveFlashcards = async (markdown: string, sourceContent: string) => {
-    const cards: { front: string; back: string }[] = [];
-    const lines = markdown.split('\n');
-    let currentQ = '';
-    let currentA = '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      const qMatch = trimmed.match(/^\*?\*?(?:Pergunta|P|Q|\d+[\.\)])\s*:?\*?\*?\s*(.+)/i);
-      const aMatch = trimmed.match(/^\*?\*?(?:Resposta|R|A)\s*:?\*?\*?\s*(.+)/i);
-      if (qMatch) {
-        if (currentQ && currentA) cards.push({ front: currentQ, back: currentA });
-        currentQ = qMatch[1].trim();
-        currentA = '';
-      } else if (aMatch) {
-        currentA = aMatch[1].trim();
+  const parseAndSaveFlashcards = async (raw: string, sourceContent: string) => {
+    let cards: { front: string; back: string }[] = [];
+
+    // Try JSON parse first (AI often returns pure JSON)
+    try {
+      const jsonMatch = raw.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(parsed)) {
+          cards = parsed.filter((c: any) => c.front && c.back).map((c: any) => ({ front: c.front, back: c.back }));
+        }
       }
+    } catch { /* fall through to markdown parsing */ }
+
+    // Fallback: parse markdown patterns
+    if (cards.length === 0) {
+      const lines = raw.split('\n');
+      let currentQ = '';
+      let currentA = '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        const qMatch = trimmed.match(/^\*?\*?(?:Pergunta|P|Q|\d+[\.\)])\s*:?\*?\*?\s*(.+)/i);
+        const aMatch = trimmed.match(/^\*?\*?(?:Resposta|R|A)\s*:?\*?\*?\s*(.+)/i);
+        if (qMatch) {
+          if (currentQ && currentA) cards.push({ front: currentQ, back: currentA });
+          currentQ = qMatch[1].trim();
+          currentA = '';
+        } else if (aMatch) {
+          currentA = aMatch[1].trim();
+        }
+      }
+      if (currentQ && currentA) cards.push({ front: currentQ, back: currentA });
     }
-    if (currentQ && currentA) cards.push({ front: currentQ, back: currentA });
+
     if (cards.length > 0) {
       const subject = sourceContent.slice(0, 30).replace(/[^a-zA-ZÀ-ÿ\s]/g, '').trim() || 'Geral';
-      await supabase.from('flashcards').insert(cards.map(c => ({
+      const { error } = await supabase.from('flashcards').insert(cards.map(c => ({
         front: c.front, back: c.back, subject, next_review: new Date().toISOString(),
       })));
-      toast({ title: `${cards.length} flashcards salvos!`, description: 'Disponíveis na página de Flashcards.' });
+      if (error) {
+        console.error('Error saving flashcards:', error);
+        toast({ title: 'Erro ao salvar flashcards', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: `${cards.length} flashcards salvos!`, description: 'Disponíveis na página de Flashcards.' });
+      }
     }
   };
 

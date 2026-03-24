@@ -4,7 +4,7 @@ import {
   BarChart3, Brain, Zap, Target, Clock, Filter, Layers, ArrowLeft,
   Trophy, Flame, TrendingUp,
 } from "lucide-react";
-import { useReveal } from "@/hooks/useReveal";
+
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateSM2, isDueForReview, getMasteryLevel, MASTERY_COLORS, MASTERY_LABELS } from "@/lib/sm2";
@@ -56,8 +56,8 @@ export default function Flashcards() {
   const [cardStartTime, setCardStartTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sessionComplete, setSessionComplete] = useState(false);
-  const headerRef = useReveal();
-  const contentRef = useReveal();
+  const headerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Load flashcards
   const loadCards = useCallback(async () => {
@@ -217,7 +217,7 @@ export default function Flashcards() {
   if (view === 'stats') {
     return (
       <div className="space-y-6">
-        <div ref={headerRef} className="reveal flex items-center gap-3">
+        <div ref={headerRef} className="flex items-center gap-3">
           <button onClick={() => setView('menu')} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95">
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -227,7 +227,7 @@ export default function Flashcards() {
           </div>
         </div>
 
-        <div ref={contentRef} className="reveal space-y-6" style={{ transitionDelay: '100ms' }}>
+        <div ref={contentRef} className="space-y-6">
           {/* Overview cards */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard icon={Layers} label="Total de Cards" value={String(allCards.length)} color="text-primary" />
@@ -298,7 +298,7 @@ export default function Flashcards() {
     const secs = elapsed % 60;
     return (
       <div className="space-y-6">
-        <div ref={headerRef} className="reveal text-center">
+        <div ref={headerRef} className="text-center">
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
             <Trophy className="h-10 w-10 text-success" />
           </div>
@@ -307,7 +307,7 @@ export default function Flashcards() {
             {STUDY_MODES.find(m => m.id === mode)?.label}
           </p>
         </div>
-        <div ref={contentRef} className="reveal mx-auto max-w-md space-y-4" style={{ transitionDelay: '100ms' }}>
+        <div ref={contentRef} className="mx-auto max-w-md space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl border border-border bg-card p-4 text-center shadow-sm">
               <p className="text-2xl font-bold text-success">{sessionCorrect}</p>
@@ -345,7 +345,7 @@ export default function Flashcards() {
   if (view === 'study' && card) {
     return (
       <div className="space-y-6">
-        <div ref={headerRef} className="reveal flex items-center justify-between">
+        <div ref={headerRef} className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => { setView('menu'); loadCards(); }}
               className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95">
@@ -370,7 +370,7 @@ export default function Flashcards() {
         </div>
 
         {/* Card */}
-        <div ref={contentRef} className="reveal flex justify-center" style={{ transitionDelay: '80ms' }}>
+        <div ref={contentRef} className="flex justify-center">
           <div className="perspective-1000 w-full max-w-xl cursor-pointer" onClick={flip}>
             <div className={cn("preserve-3d relative h-72 w-full transition-transform duration-500", isFlipped && "rotate-y-180")}>
               <div className="backface-hidden absolute inset-0 flex items-center justify-center rounded-2xl border border-border bg-card p-8 shadow-lg">
@@ -432,7 +432,7 @@ export default function Flashcards() {
   // --- MENU VIEW ---
   return (
     <div className="space-y-6">
-      <div ref={headerRef} className="reveal flex items-center justify-between">
+      <div ref={headerRef} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Flashcards</h1>
           <p className="text-sm text-muted-foreground">
@@ -447,7 +447,7 @@ export default function Flashcards() {
         </div>
       </div>
 
-      <div ref={contentRef} className="reveal space-y-6" style={{ transitionDelay: '100ms' }}>
+      <div ref={contentRef} className="space-y-6">
         {/* Subject filter */}
         {subjects.length > 0 && (
           <div className="flex flex-wrap gap-2">

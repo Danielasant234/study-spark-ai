@@ -1,0 +1,479 @@
+import { useState, useRef, useCallback } from "react";
+import { Upload, Loader2, CheckCircle, Edit3, Sparkles, FileText, Layers, PenTool, Network, Download, ChevronRight, AlertCircle, Clock, Mic } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { generateMaterial } from "@/lib/ai";
+import { downloadMarkdownAsPdf } from "@/lib/pdf";
+import { Progress } from "@/components/ui/progress";
+
+type Step = "upload" | "transcribing" | "review" | "analyzing" | "analyzed" | "generating" | "done";
+
+const CHUNK_SIZE = 15 * 1024 * 1024; // 15MB
+
+const materialOptions = [
+  { id: "summary", label: "Resumo", icon: FileText },
+  { id: "flashcards", label: "Flashcards", icon: Layers },
+  { id: "exercises", label: "Exercícios", icon: PenTool },
+  { id: "mindmap", label: "Mapa Mental", icon: Network },
+];
+
+const steps: { key: Step; label: string; icon: React.ElementType }[] = [
+  { key: "upload", label: "Upload", icon: Upload },
+  { key: "transcribing", label: "Transcrição", icon: Mic },
+  { key: "review", label: "Revisão", icon: Edit3 },
+  { key: "analyzed", label: "Análise IA", icon: Sparkles },
+  { key: "done", label: "Materiais", icon: FileText },
+];
+
+function getStepIndex(step: Step): number {
+  if (step === "analyzing") return 3;
+  if (step === "generating") return 4;
+  return steps.findIndex((s) => s.key === step);
+}
+
+export default function TranscriptionPage() {
+  const [currentStep, setCurrentStep] = useState<Step>("upload");
+  const [file, setFile] = useState<File | null>(null);
+  const [rawTranscription, setRawTranscription] = useState("");
+  const [editedTranscription, setEditedTranscription] = useState("");
+  const [analyzedText, setAnalyzedText] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState("");
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>(["summary"]);
+  const [generatedMaterials, setGeneratedMaterials] = useState<Record<string, string>>({});
+  const [isGenerating, setIsGenerating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  const sendChunk = async (chunk: Blob, mimeType: string, idx?: number, total?: number): Promise<string> => {
+    const fd = new FormData();
+    fd.append("audio", new File([chunk], `chunk.mp3`, { type: mimeType }));
+    if (idx !== undefined && total !== undefined) {
+      fd.append("chunkIndex", String(idx));
+      fd.append("totalChunks", String(total));
+    }
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      body: fd,
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `Erro (${resp.status})`);
+    }
+    return (await resp.json()).transcription;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("audio/") && !f.name.match(/\.(mp3|wav|m4a)$/i)) {
+      toast({ title: "Formato não suportado", description: "Use MP3, WAV ou M4A.", variant: "destructive" });
+      return;
+    }
+    setFile(f);
+    e.target.value = "";
+  };
+
+  const startTranscription = async () => {
+    if (!file) return;
+    setCurrentStep("transcribing");
+    setProgress(0);
+    const mimeType = file.type || "audio/mpeg";
+
+    try {
+      if (file.size <= CHUNK_SIZE) {
+        setProgressLabel("Transcrevendo áudio...");
+        setProgress(30);
+        const text = await sendChunk(file, mimeType);
+        setProgress(100);
+        setRawTranscription(text);
+        setEditedTranscription(text);
+        setCurrentStep("review");
+        toast({ title: "Transcrição concluída!", description: "Revise o texto antes de continuar." });
+      } else {
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        let full = "";
+        for (let i = 0; i < totalChunks; i++) {
+          setProgressLabel(`Transcrevendo parte ${i + 1} de ${totalChunks}...`);
+          setProgress(Math.round(((i) / totalChunks) * 100));
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunk = file.slice(start, end, mimeType);
+          const text = await sendChunk(chunk, mimeType, i, totalChunks);
+          full += (full ? "\n\n" : "") + text;
+        }
+        setProgress(100);
+        setRawTranscription(full);
+        setEditedTranscription(full);
+        setCurrentStep("review");
+        toast({ title: "Transcrição concluída!", description: `${totalChunks} partes processadas.` });
+      }
+    } catch (e: any) {
+      toast({ title: "Erro na transcrição", description: e.message, variant: "destructive" });
+      setCurrentStep("upload");
+    }
+  };
+
+  const handleAnalyze = async () => {
+    setCurrentStep("analyzing");
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-transcription", {
+        body: { transcription: editedTranscription },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      setAnalyzedText(data.result);
+      setCurrentStep("analyzed");
+      toast({ title: "Análise concluída!", description: "Revise o resultado e gere os materiais." });
+    } catch (e: any) {
+      toast({ title: "Erro na análise", description: e.message, variant: "destructive" });
+      setCurrentStep("review");
+    }
+  };
+
+  const toggleMaterial = (id: string) => {
+    setSelectedMaterials((prev) => prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]);
+  };
+
+  const handleGenerateMaterials = async () => {
+    if (selectedMaterials.length === 0) {
+      toast({ title: "Selecione ao menos um material", variant: "destructive" });
+      return;
+    }
+    setCurrentStep("generating");
+    setIsGenerating(true);
+    const results: Record<string, string> = {};
+    const sourceText = analyzedText || editedTranscription;
+
+    try {
+      for (const type of selectedMaterials) {
+        setProgressLabel(`Gerando ${materialOptions.find((m) => m.id === type)?.label}...`);
+        const res = await generateMaterial(sourceText, type);
+        results[type] = res;
+
+        const typeLabel = materialOptions.find((m) => m.id === type)?.label || type;
+        await supabase.from("generated_materials").insert({
+          title: `${typeLabel} - Transcrição`,
+          type,
+          content: res,
+          source_preview: sourceText.slice(0, 200),
+        });
+      }
+      setGeneratedMaterials(results);
+      setCurrentStep("done");
+      toast({ title: "Materiais gerados!", description: `${selectedMaterials.length} material(is) criado(s).` });
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar materiais", description: e.message, variant: "destructive" });
+      setCurrentStep("analyzed");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownloadPdf = (content: string, title: string) => {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = resultRef.current?.innerHTML || content;
+    downloadMarkdownAsPdf(title, tempDiv.innerHTML);
+  };
+
+  const resetFlow = () => {
+    setCurrentStep("upload");
+    setFile(null);
+    setRawTranscription("");
+    setEditedTranscription("");
+    setAnalyzedText("");
+    setGeneratedMaterials({});
+    setProgress(0);
+    setSelectedMaterials(["summary"]);
+  };
+
+  const currentStepIndex = getStepIndex(currentStep);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Transcrição de Áudio</h1>
+        <p className="text-sm text-muted-foreground">Transcreva áudios longos com revisão assistida por IA</p>
+      </div>
+
+      {/* Stepper */}
+      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-3 overflow-x-auto">
+        {steps.map((s, i) => (
+          <div key={s.key} className="flex items-center gap-1 flex-shrink-0">
+            <div className={cn(
+              "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+              currentStepIndex >= i
+                ? currentStepIndex === i ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+                : "text-muted-foreground"
+            )}>
+              <s.icon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{s.label}</span>
+            </div>
+            {i < steps.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />}
+          </div>
+        ))}
+      </div>
+
+      {/* Step: Upload */}
+      {currentStep === "upload" && (
+        <div className="rounded-xl border border-border bg-card p-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+              <Upload className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Envie seu áudio</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Suporte para áudios de 1 a 2 horas (MP3, WAV, M4A)</p>
+            </div>
+
+            {!file ? (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/50 px-8 py-6 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+              >
+                <Upload className="h-5 w-5" />
+                Selecionar arquivo de áudio
+              </button>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-3 rounded-lg bg-secondary px-4 py-3">
+                  <Mic className="h-5 w-5 text-primary" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-foreground">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">{(file.size / (1024 * 1024)).toFixed(1)} MB</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setFile(null); }}
+                    className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-secondary"
+                  >
+                    Trocar
+                  </button>
+                  <button
+                    onClick={startTranscription}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Iniciar Transcrição
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,.mp3,.wav,.m4a"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Step: Transcribing */}
+      {currentStep === "transcribing" && (
+        <div className="rounded-xl border border-border bg-card p-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Transcrevendo áudio...</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{progressLabel}</p>
+            </div>
+            <div className="w-full max-w-md">
+              <Progress value={progress} className="h-2" />
+              <p className="mt-2 text-xs text-muted-foreground">{progress}% concluído</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              Isso pode levar alguns minutos para áudios longos
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Review */}
+      {currentStep === "review" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Transcrição concluída — aguardando revisão</h2>
+                <p className="text-xs text-muted-foreground">Revise e corrija o texto antes da análise por IA</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Edit3 className="h-4 w-4" />
+                Editor de Transcrição
+              </div>
+              <span className="text-xs text-muted-foreground">{editedTranscription.length} caracteres</span>
+            </div>
+            <textarea
+              value={editedTranscription}
+              onChange={(e) => setEditedTranscription(e.target.value)}
+              className="w-full min-h-[400px] bg-transparent p-4 text-sm text-foreground outline-none resize-y placeholder:text-muted-foreground"
+              placeholder="A transcrição aparecerá aqui..."
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setEditedTranscription(rawTranscription)}
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Restaurar transcrição original
+            </button>
+            <button
+              onClick={handleAnalyze}
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
+            >
+              <Sparkles className="h-4 w-4" />
+              Analisar Transcrição
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Analyzing */}
+      {currentStep === "analyzing" && (
+        <div className="rounded-xl border border-border bg-card p-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Analisando transcrição...</h2>
+              <p className="mt-1 text-sm text-muted-foreground">A IA está corrigindo, organizando e identificando conceitos-chave</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Analyzed */}
+      {currentStep === "analyzed" && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <CheckCircle className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Análise concluída</h2>
+              <p className="text-xs text-muted-foreground">Revise o resultado e selecione os materiais para gerar</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <span className="text-sm font-medium text-foreground">Transcrição Analisada</span>
+              <button
+                onClick={() => { handleDownloadPdf(analyzedText, "Transcrição Analisada"); }}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Download className="h-3.5 w-3.5" /> PDF
+              </button>
+            </div>
+            <div ref={resultRef} className="max-h-[400px] overflow-y-auto p-4 prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
+              <ReactMarkdown>{analyzedText}</ReactMarkdown>
+            </div>
+          </div>
+
+          {/* Material selection */}
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Selecione os materiais para gerar:</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {materialOptions.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => toggleMaterial(m.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border p-3 text-sm transition-all",
+                    selectedMaterials.includes(m.id)
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground hover:bg-secondary"
+                  )}
+                >
+                  <m.icon className="h-4 w-4" />
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleGenerateMaterials}
+              disabled={selectedMaterials.length === 0}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
+            >
+              <Sparkles className="h-4 w-4" />
+              Gerar {selectedMaterials.length} Material(is)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Generating */}
+      {currentStep === "generating" && (
+        <div className="rounded-xl border border-border bg-card p-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Gerando materiais...</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{progressLabel}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Done */}
+      {currentStep === "done" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <CheckCircle className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Materiais prontos!</h2>
+                <p className="text-xs text-muted-foreground">Todos os materiais foram gerados e salvos</p>
+              </div>
+            </div>
+            <button
+              onClick={resetFlow}
+              className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-secondary"
+            >
+              Nova transcrição
+            </button>
+          </div>
+
+          {Object.entries(generatedMaterials).map(([type, content]) => {
+            const label = materialOptions.find((m) => m.id === type)?.label || type;
+            return (
+              <div key={type} className="rounded-xl border border-border bg-card">
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">{label}</span>
+                  <button
+                    onClick={() => handleDownloadPdf(content, label)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Download className="h-3.5 w-3.5" /> PDF
+                  </button>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto p-4 prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
+                  <ReactMarkdown>{content}</ReactMarkdown>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
