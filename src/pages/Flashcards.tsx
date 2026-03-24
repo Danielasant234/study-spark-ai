@@ -56,8 +56,8 @@ export default function Flashcards() {
   const [cardStartTime, setCardStartTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sessionComplete, setSessionComplete] = useState(false);
-  const headerRef = useReveal();
-  const contentRef = useReveal();
+  const headerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Load flashcards
   const loadCards = useCallback(async () => {
