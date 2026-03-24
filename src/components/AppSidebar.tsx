@@ -1,6 +1,8 @@
 import { BookOpen, Brain, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2, Mic } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -14,6 +16,32 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const [sessionsToday, setSessionsToday] = useState(0);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { count } = await supabase
+        .from('review_sessions')
+        .select('*', { count: 'exact', head: true })
+        .gte('ended_at', today.toISOString());
+        
+      if (count !== null) setSessionsToday(count);
+    };
+
+    fetchSessions();
+
+    const channel = supabase
+      .channel('sidebar-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'review_sessions' }, () => {
+        fetchSessions();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   return (
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col border-r border-border bg-surface-raised">
@@ -54,9 +82,9 @@ export function AppSidebar() {
             <Brain className="h-4 w-4" />
             Sessões hoje
           </div>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">3</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">{sessionsToday}</p>
           <div className="mt-2 h-1.5 rounded-full bg-border">
-            <div className="h-full w-3/5 rounded-full bg-primary transition-all" />
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, (sessionsToday / 5) * 100)}%` }} />
           </div>
         </div>
       </div>

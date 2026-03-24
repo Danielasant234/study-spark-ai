@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 
 type Step = "upload" | "transcribing" | "review" | "analyzing" | "analyzed" | "generating" | "done";
 
-const CHUNK_SIZE = 15 * 1024 * 1024; // 15MB
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB para prevenir timeouts na Edge Function
 
 const materialOptions = [
   { id: "summary", label: "Resumo", icon: FileText },

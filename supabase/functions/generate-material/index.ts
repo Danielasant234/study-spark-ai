@@ -15,13 +15,13 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const prompts: Record<string, string> = {
-      summary: `Crie um resumo estruturado e detalhado do seguinte conteúdo. Use títulos, subtítulos, bullet points e destaque conceitos-chave em negrito. O resumo deve ser completo mas conciso.\n\nConteúdo:\n${content}`,
-      flashcards: `Gere pelo menos 10 flashcards (pergunta e resposta) a partir do seguinte conteúdo. Retorne em formato JSON como array de objetos com campos "front" (pergunta) e "back" (resposta). Apenas o JSON, sem texto adicional.\n\nConteúdo:\n${content}`,
-      exercises: `Gere 10 exercícios variados (múltipla escolha, verdadeiro/falso e dissertativas) com gabarito completo a partir do seguinte conteúdo. Organize por tipo e inclua explicações nas respostas.\n\nConteúdo:\n${content}`,
-      mindmap: `Crie um mapa mental em formato textual hierárquico do seguinte conteúdo. Use indentação com "─" para sub-tópicos e organize de forma lógica os conceitos principais e secundários.\n\nConteúdo:\n${content}`,
+      summary: `Crie um resumo estruturado e detalhado do seguinte conteúdo. Formate a resposta em Markdown. Use títulos (##), subtítulos (###), listas ordenadas e marcadores (bullet points). Destaque conceitos-chave e termos importantes em **negrito**. O resumo deve ser visualmente limpo, organizado para leitura rápida e conciso.\n\nConteúdo:\n${content}`,
+      flashcards: `Gere flashcards (pergunta e resposta) sobre o conteúdo. Siga EXATAMENTE a quantidade de flashcards e os critérios solicitados pelo usuário no próprio conteúdo. Formate a resposta EXCLUSIVAMENTE em Markdown estruturado, seguindo estritamente este padrão visual exato para CADA flashcard:\n\n**Pergunta:** [Sua pergunta aqui]\n**Resposta:** [Sua resposta aqui]\n\n---\n\nNão numere as perguntas. Use exatamente "**Pergunta:**" e "**Resposta:**".\n\nConteúdo:\n${content}`,
+      exercises: `Gere 10 exercícios variados (múltipla escolha, verdadeiro/falso e dissertativas) a partir do seguinte conteúdo. Use formatação Markdown. Apresente primeiro APENAS as questões. Para questões de múltipla escolha, use formato de lista (A), B), C), etc). No final, crie uma seção delimitada por "## Gabarito e Explicações" com as respostas corretas e explicações detalhadas.\n\nConteúdo:\n${content}`,
+      mindmap: `Crie um mapa mental em formato textual hierárquico do seguinte conteúdo. Use markdown de listas aninhadas (usando -, *, ou + e recuos corretos) para representar visualmente a árvore de conceitos, partindo do tema central para os sub-tópicos. Destaque os nós principais em **negrito** e apresente o resultado como uma lista interligada clara.\n\nConteúdo:\n${content}`,
     };
 
-    const systemPrompt = `Você é um assistente educacional especializado em criar materiais de estudo de alta qualidade. Responda sempre em português brasileiro com formatação markdown clara e organizada.`;
+    const systemPrompt = `Você é um assistente educacional especializado em criar materiais de estudo de alta qualidade. Responda sempre em português brasileiro com formatação markdown clara, rica e visualmente bem organizada para que seja exibida perfeitamente em uma interface web.`;
 
     const userPrompt = prompts[type] || prompts.summary;
 

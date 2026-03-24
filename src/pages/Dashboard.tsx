@@ -3,25 +3,15 @@ import { Link } from "react-router-dom";
 import { useReveal } from "@/hooks/useReveal";
 
 const stats = [
-  { label: "Matérias", value: "6", icon: BookOpen, color: "bg-primary/10 text-primary" },
-  { label: "Flashcards", value: "142", icon: Layers, color: "bg-accent/15 text-accent-foreground" },
-  { label: "Resumos", value: "23", icon: FileText, color: "bg-info/10 text-info" },
-  { label: "Horas estudadas", value: "47.5h", icon: Clock, color: "bg-success/10 text-success" },
+  { label: "Matérias", value: "0", icon: BookOpen, color: "bg-primary/10 text-primary" },
+  { label: "Flashcards", value: "0", icon: Layers, color: "bg-accent/15 text-accent-foreground" },
+  { label: "Resumos", value: "0", icon: FileText, color: "bg-info/10 text-info" },
+  { label: "Horas estudadas", value: "0h", icon: Clock, color: "bg-success/10 text-success" },
 ];
 
-const recentSubjects = [
-  { name: "Direito Constitucional", cards: 38, progress: 72, color: "hsl(158, 64%, 32%)" },
-  { name: "Biologia Molecular", cards: 25, progress: 45, color: "hsl(38, 92%, 55%)" },
-  { name: "Cálculo II", cards: 31, progress: 60, color: "hsl(210, 80%, 55%)" },
-  { name: "História do Brasil", cards: 48, progress: 88, color: "hsl(340, 65%, 50%)" },
-];
+const recentSubjects: any[] = [];
 
-const recentActivity = [
-  { action: "Estudou 15 flashcards", subject: "Direito Constitucional", time: "Há 2 horas" },
-  { action: "Gerou resumo", subject: "Biologia Molecular", time: "Há 5 horas" },
-  { action: "Completou exercícios", subject: "Cálculo II", time: "Ontem" },
-  { action: "Adicionou 8 flashcards", subject: "História do Brasil", time: "Ontem" },
-];
+const recentActivity: any[] = [];
 
 export default function Dashboard() {
   const heroRef = useReveal();
@@ -37,7 +27,7 @@ export default function Dashboard() {
           Bom dia, estudante 👋
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Você tem <span className="font-semibold text-primary">12 flashcards</span> para revisar hoje.
+          Você tem <span className="font-semibold text-primary">0 flashcards</span> para revisar hoje.
         </p>
       </div>
 
@@ -70,7 +60,7 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {recentSubjects.map((subject) => (
+            {recentSubjects.length > 0 ? recentSubjects.map((subject) => (
               <div
                 key={subject.name}
                 className="group cursor-pointer rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:shadow-md active:scale-[0.98]"
@@ -98,7 +88,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            ))}
+            )) : <p className="text-sm text-muted-foreground py-4">Nenhuma matéria criada ainda.</p>}
           </div>
         </div>
 
@@ -106,7 +96,7 @@ export default function Dashboard() {
         <div ref={activityRef} className="reveal" style={{ transitionDelay: "240ms" }}>
           <h2 className="text-lg font-semibold text-foreground">Atividade Recente</h2>
           <div className="mt-4 space-y-3">
-            {recentActivity.map((item, i) => (
+            {recentActivity.length > 0 ? recentActivity.map((item, i) => (
               <div
                 key={i}
                 className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 shadow-sm"
@@ -119,7 +109,7 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-            ))}
+            )) : <p className="text-sm text-muted-foreground">Nenhuma atividade recente.</p>}
           </div>
         </div>
       </div>
@@ -140,10 +130,13 @@ export default function Dashboard() {
           <Brain className="h-4 w-4" />
           Perguntar à IA
         </Link>
-        <button className="inline-flex items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-primary hover:text-primary active:scale-[0.97]">
+        <Link
+          to="/subjects" state={{ openNewSubject: true }}
+          className="inline-flex items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-primary hover:text-primary active:scale-[0.97]"
+        >
           <Plus className="h-4 w-4" />
           Nova Matéria
-        </button>
+        </Link>
       </div>
     </div>
   );

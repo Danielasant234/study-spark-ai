@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { BookOpen, Plus, MoreVertical, Pencil, Trash2, X } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import { cn } from "@/lib/utils";
@@ -13,14 +14,7 @@ type Subject = {
   color: string;
 };
 
-const defaultSubjects: Subject[] = [
-  { id: "1", name: "Direito Constitucional", cards: 38, summaries: 5, progress: 72, color: "hsl(158, 64%, 32%)" },
-  { id: "2", name: "Biologia Molecular", cards: 25, summaries: 3, progress: 45, color: "hsl(38, 92%, 55%)" },
-  { id: "3", name: "Cálculo II", cards: 31, summaries: 4, progress: 60, color: "hsl(210, 80%, 55%)" },
-  { id: "4", name: "História do Brasil", cards: 48, summaries: 7, progress: 88, color: "hsl(340, 65%, 50%)" },
-  { id: "5", name: "Física Quântica", cards: 18, summaries: 2, progress: 30, color: "hsl(270, 60%, 55%)" },
-  { id: "6", name: "Português", cards: 22, summaries: 4, progress: 55, color: "hsl(15, 75%, 50%)" },
-];
+const defaultSubjects: Subject[] = [];
 
 const colorOptions = [
   "hsl(158, 64%, 32%)",
@@ -34,14 +28,22 @@ const colorOptions = [
 ];
 
 export default function Subjects() {
+  const location = useLocation();
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(location.state?.openNewSubject || false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(colorOptions[0]);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const headerRef = useReveal();
   const gridRef = useReveal();
+
+  useEffect(() => {
+    if (location.state?.openNewSubject) {
+      setShowAddDialog(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const addSubject = () => {
     if (!newName.trim()) return;

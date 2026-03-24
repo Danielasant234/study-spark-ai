@@ -15,7 +15,7 @@ const materialTypes = [
   { id: "mindmap", label: "Mapa Mental", icon: Network, description: "Organização hierárquica de conceitos" },
 ];
 
-const MAX_CHUNK_SIZE = 15 * 1024 * 1024; // 15MB per chunk
+const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB per chunk para evitar timeout no Gateway/Edge Function
 
 export default function GeneratePage() {
   const parseAndSaveFlashcards = async (raw: string, sourceContent: string) => {
