@@ -10,6 +10,7 @@ import Flashcards from "./pages/Flashcards";
 import Summaries from "./pages/Summaries";
 import GeneratePage from "./pages/Generate";
 import Chat from "./pages/Chat";
+import Transcription from "./pages/Transcription";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/generate" element={<GeneratePage />} />
             <Route path="/summaries" element={<Summaries />} />
+            <Route path="/transcription" element={<Transcription />} />
             <Route path="/chat" element={<Chat />} />
           </Route>
           <Route path="*" element={<NotFound />} />
