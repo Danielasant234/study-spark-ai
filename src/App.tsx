@@ -28,6 +28,7 @@ const App = () => (
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/generate" element={<GeneratePage />} />
             <Route path="/summaries" element={<Summaries />} />
+            <Route path="/transcription" element={<Transcription />} />
             <Route path="/chat" element={<Chat />} />
           </Route>
           <Route path="*" element={<NotFound />} />

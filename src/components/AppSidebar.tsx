@@ -8,6 +8,7 @@ const navItems = [
   { to: "/flashcards", icon: Layers, label: "Flashcards" },
   { to: "/generate", icon: Wand2, label: "Gerar Material" },
   { to: "/summaries", icon: FileText, label: "Resumos" },
+  { to: "/transcription", icon: Mic, label: "Transcrição" },
   { to: "/chat", icon: MessageCircle, label: "Assistente IA" },
 ];
 
