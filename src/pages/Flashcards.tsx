@@ -227,7 +227,7 @@ export default function Flashcards() {
           </div>
         </div>
 
-        <div ref={contentRef} className="space-y-6" style={{ transitionDelay: '100ms' }}>
+        <div ref={contentRef} className="space-y-6">
           {/* Overview cards */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard icon={Layers} label="Total de Cards" value={String(allCards.length)} color="text-primary" />
@@ -307,7 +307,7 @@ export default function Flashcards() {
             {STUDY_MODES.find(m => m.id === mode)?.label}
           </p>
         </div>
-        <div ref={contentRef} className="mx-auto max-w-md space-y-4" style={{ transitionDelay: '100ms' }}>
+        <div ref={contentRef} className="mx-auto max-w-md space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl border border-border bg-card p-4 text-center shadow-sm">
               <p className="text-2xl font-bold text-success">{sessionCorrect}</p>
@@ -370,7 +370,7 @@ export default function Flashcards() {
         </div>
 
         {/* Card */}
-        <div ref={contentRef} className="flex justify-center" style={{ transitionDelay: '80ms' }}>
+        <div ref={contentRef} className="flex justify-center">
           <div className="perspective-1000 w-full max-w-xl cursor-pointer" onClick={flip}>
             <div className={cn("preserve-3d relative h-72 w-full transition-transform duration-500", isFlipped && "rotate-y-180")}>
               <div className="backface-hidden absolute inset-0 flex items-center justify-center rounded-2xl border border-border bg-card p-8 shadow-lg">
@@ -447,7 +447,7 @@ export default function Flashcards() {
         </div>
       </div>
 
-      <div ref={contentRef} className="space-y-6" style={{ transitionDelay: '100ms' }}>
+      <div ref={contentRef} className="space-y-6">
         {/* Subject filter */}
         {subjects.length > 0 && (
           <div className="flex flex-wrap gap-2">
