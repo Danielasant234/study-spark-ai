@@ -1,4 +1,4 @@
-import { BookOpen, Brain, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2, Mic, Compass } from "lucide-react";
+import { BookOpen, Brain, Compass, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2, Mic } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -14,7 +14,11 @@ const navItems = [
   { to: "/chat", icon: MessageCircle, label: "Assistente IA" },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const location = useLocation();
   const [sessionsToday, setSessionsToday] = useState(0);
 
@@ -22,12 +26,10 @@ export function AppSidebar() {
     const fetchSessions = async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
       const { count } = await supabase
         .from('review_sessions')
         .select('*', { count: 'exact', head: true })
         .gte('ended_at', today.toISOString());
-        
       if (count !== null) setSessionsToday(count);
     };
 
@@ -57,13 +59,14 @@ export function AppSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-0.5 px-3 py-4">
+      <nav className="flex-1 space-y-0.5 px-3 py-4 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.to;
           return (
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
