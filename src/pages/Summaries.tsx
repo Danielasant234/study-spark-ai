@@ -35,9 +35,7 @@ export default function Summaries() {
   const [viewingMaterial, setViewingMaterial] = useState<Material | null>(null);
   const headerRef = useReveal();
 
-  useEffect(() => {
-    loadMaterials();
-  }, []);
+  useEffect(() => { loadMaterials(); }, []);
 
   const loadMaterials = async () => {
     setLoading(true);
@@ -77,40 +75,38 @@ export default function Summaries() {
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
     if (diffHours < 1) return "Agora";
     if (diffHours < 24) return `Há ${diffHours}h`;
     if (diffDays < 7) return `Há ${diffDays} dia${diffDays > 1 ? "s" : ""}`;
     return date.toLocaleDateString("pt-BR");
   };
 
-  // Viewing a material detail
   if (viewingMaterial) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <button
             onClick={() => setViewingMaterial(null)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors self-start"
           >
             <X className="h-4 w-4" />
             Voltar
           </button>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold tracking-tight text-foreground">{viewingMaterial.title}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-heading text-lg sm:text-xl font-bold tracking-tight text-foreground truncate">{viewingMaterial.title}</h1>
             <p className="text-xs text-muted-foreground">
               {typeLabels[viewingMaterial.type] || viewingMaterial.type} · {formatDate(viewingMaterial.created_at)}
             </p>
           </div>
           <button
             onClick={() => handleDownloadPdf(viewingMaterial)}
-            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors self-start"
           >
             <Download className="h-4 w-4" />
             Baixar PDF
           </button>
         </div>
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-6 shadow-sm">
           <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-primary">
             <ReactMarkdown>{viewingMaterial.content}</ReactMarkdown>
           </div>
@@ -122,18 +118,17 @@ export default function Summaries() {
   return (
     <div className="space-y-6">
       <div ref={headerRef} className="reveal">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Materiais Gerados</h1>
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">Materiais Gerados</h1>
         <p className="text-sm text-muted-foreground">Resumos, flashcards, exercícios e mapas mentais gerados pela IA</p>
       </div>
 
-      {/* Removed reveal class from this div to fix the back-button visibility bug */}
       <div className="space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : materials.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="flex flex-col items-center justify-center py-16 text-center px-4">
             <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground">Nenhum material gerado ainda</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
@@ -146,14 +141,14 @@ export default function Summaries() {
             return (
               <div
                 key={material.id}
-                className="group flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:shadow-md"
+                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:shadow-md"
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
                     <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground truncate">{material.title}</h3>
+                    <h3 className="font-semibold text-foreground truncate text-sm sm:text-base">{material.title}</h3>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">
                         {typeLabels[material.type] || material.type}
@@ -165,23 +160,14 @@ export default function Summaries() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    onClick={() => setViewingMaterial(material)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
+                <div className="flex items-center gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 self-end sm:self-auto">
+                  <button onClick={() => setViewingMaterial(material)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                     <Eye className="h-4 w-4" />
                   </button>
-                  <button
-                    onClick={() => handleDownloadPdf(material)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
+                  <button onClick={() => handleDownloadPdf(material)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                     <Download className="h-4 w-4" />
                   </button>
-                  <button
-                    onClick={() => deleteMaterial(material.id)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  >
+                  <button onClick={() => deleteMaterial(material.id)} className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

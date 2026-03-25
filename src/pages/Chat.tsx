@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Brain, User, Sparkles, Trash2, Plus, MessageSquare, Clock, ChevronLeft } from "lucide-react";
+import { Send, Brain, User, Sparkles, Trash2, Plus, MessageSquare, Clock, ChevronLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { useReveal } from "@/hooks/useReveal";
 import { streamChat, type Message } from "@/lib/ai";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,15 +35,11 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const headerRef = useReveal();
 
-  // Load conversations
-  useEffect(() => {
-    loadConversations();
-  }, []);
+  useEffect(() => { loadConversations(); }, []);
 
   const loadConversations = async () => {
     const { data } = await supabase
@@ -124,11 +119,13 @@ export default function Chat() {
   const loadConversation = (conv: Conversation) => {
     setActiveConvId(conv.id);
     setMessages(conv.messages as Message[]);
+    setShowSidebar(false);
   };
 
   const newConversation = () => {
     setActiveConvId(null);
     setMessages([WELCOME_MSG]);
+    setShowSidebar(false);
   };
 
   const deleteConversation = async (id: string, e: React.MouseEvent) => {
@@ -146,12 +143,18 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-0">
+    <div className="flex h-[calc(100vh-5rem)] lg:h-[calc(100vh-4rem)] gap-0 relative">
+      {/* Mobile overlay */}
+      {showSidebar && (
+        <div className="fixed inset-0 z-20 bg-black/30 md:hidden" onClick={() => setShowSidebar(false)} />
+      )}
+
       {/* Conversation sidebar */}
       <div
         className={cn(
-          "flex-shrink-0 flex flex-col border-r border-border bg-surface-sunken transition-all duration-300",
-          showSidebar ? "w-64" : "w-0 overflow-hidden border-r-0"
+          "flex-shrink-0 flex flex-col border-r border-border bg-surface-sunken transition-all duration-300 z-30",
+          "fixed inset-y-0 left-0 w-64 md:relative md:inset-auto",
+          showSidebar ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden md:border-r-0"
         )}
       >
         <div className="flex items-center justify-between p-3 border-b border-border">
@@ -199,33 +202,33 @@ export default function Chat() {
 
       {/* Main chat area */}
       <div className="flex flex-1 flex-col min-w-0">
-        <div ref={headerRef} className="reveal flex-shrink-0 flex items-center justify-between px-1 pb-2">
+        <div className="flex-shrink-0 flex items-center justify-between px-1 pb-2">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
-              <ChevronLeft className={cn("h-4 w-4 transition-transform", !showSidebar && "rotate-180")} />
+              {showSidebar ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
             </button>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">Assistente IA</h1>
-              <p className="text-xs text-muted-foreground">Tire dúvidas e gere materiais em tempo real</p>
+              <h1 className="font-heading text-lg sm:text-xl font-bold tracking-tight text-foreground">Assistente IA</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">Tire dúvidas e gere materiais em tempo real</p>
             </div>
           </div>
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-xl border border-border bg-surface-sunken p-4">
+        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-xl border border-border bg-surface-sunken p-3 sm:p-4">
           {messages.map((msg, i) => (
-            <div key={i} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
+            <div key={i} className={cn("flex gap-2 sm:gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
               {msg.role === "assistant" && (
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <Brain className="h-4 w-4 text-primary" />
+                <div className="flex h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                 </div>
               )}
               <div
                 className={cn(
-                  "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  "max-w-[85%] sm:max-w-[75%] rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed",
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-card border border-border text-foreground shadow-sm"
@@ -240,8 +243,8 @@ export default function Chat() {
                 )}
               </div>
               {msg.role === "user" && (
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                <div className="flex h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                 </div>
               )}
             </div>
@@ -262,7 +265,7 @@ export default function Chat() {
           )}
 
           {messages.length <= 1 && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-4 grid gap-2 grid-cols-1 sm:grid-cols-2">
               {suggestions.map((s) => (
                 <button
                   key={s}
@@ -291,10 +294,10 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Digite sua pergunta... (Enter para enviar, Shift+Enter para nova linha)"
+              placeholder="Digite sua pergunta..."
               disabled={isStreaming}
               rows={1}
-              className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50 resize-none max-h-32"
+              className="flex-1 bg-transparent px-2 sm:px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50 resize-none max-h-32"
               style={{ minHeight: "40px" }}
             />
             <button

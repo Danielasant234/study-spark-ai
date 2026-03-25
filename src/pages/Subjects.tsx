@@ -17,9 +17,9 @@ type Subject = {
 const defaultSubjects: Subject[] = [];
 
 const colorOptions = [
-  "hsl(158, 64%, 32%)",
-  "hsl(38, 92%, 55%)",
-  "hsl(210, 80%, 55%)",
+  "hsl(210, 75%, 35%)",
+  "hsl(42, 78%, 52%)",
+  "hsl(4, 65%, 52%)",
   "hsl(340, 65%, 50%)",
   "hsl(270, 60%, 55%)",
   "hsl(15, 75%, 50%)",
@@ -96,9 +96,9 @@ export default function Subjects() {
 
   return (
     <div className="space-y-6">
-      <div ref={headerRef} className="reveal flex items-center justify-between">
+      <div ref={headerRef} className="reveal flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Matérias</h1>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">Matérias</h1>
           <p className="text-sm text-muted-foreground">Organize seus estudos por área de conhecimento</p>
         </div>
         <button
@@ -107,7 +107,7 @@ export default function Subjects() {
             setNewName("");
             setNewColor(colorOptions[0]);
           }}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 active:scale-[0.97]"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 active:scale-[0.97]"
         >
           <Plus className="h-4 w-4" />
           Nova Matéria
@@ -116,13 +116,13 @@ export default function Subjects() {
 
       {/* Add/Edit Dialog */}
       {isDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeDialog}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeDialog}>
           <div
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl mx-4"
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-foreground">
+              <h2 className="font-heading text-lg font-bold text-foreground">
                 {editingSubject ? "Editar Matéria" : "Nova Matéria"}
               </h2>
               <button onClick={closeDialog} className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -163,7 +163,7 @@ export default function Subjects() {
               <button
                 onClick={editingSubject ? updateSubject : addSubject}
                 disabled={!newName.trim()}
-                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98]"
+                className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98]"
               >
                 {editingSubject ? "Salvar" : "Criar Matéria"}
               </button>
@@ -172,11 +172,11 @@ export default function Subjects() {
         </div>
       )}
 
-      <div ref={gridRef} className="reveal grid gap-4 sm:grid-cols-2 lg:grid-cols-3" style={{ transitionDelay: "100ms" }}>
+      <div ref={gridRef} className="reveal grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ transitionDelay: "100ms" }}>
         {subjects.map((subject) => (
           <div
             key={subject.id}
-            className="group cursor-pointer rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-md active:scale-[0.98]"
+            className="group cursor-pointer rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm transition-all duration-300 hover:shadow-md active:scale-[0.98]"
           >
             <div className="flex items-start justify-between">
               <div
@@ -191,28 +191,22 @@ export default function Subjects() {
                     e.stopPropagation();
                     setOpenMenuId(openMenuId === subject.id ? null : subject.id);
                   }}
-                  className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-secondary"
+                  className="rounded-md p-1.5 text-muted-foreground transition-opacity hover:bg-secondary sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   <MoreVertical className="h-4 w-4" />
                 </button>
                 {openMenuId === subject.id && (
                   <div className="absolute right-0 top-8 z-10 w-40 rounded-lg border border-border bg-card py-1 shadow-lg">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEdit(subject);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+                      onClick={(e) => { e.stopPropagation(); openEdit(subject); }}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                       Editar
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSubject(subject.id);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); deleteSubject(subject.id); }}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Excluir
