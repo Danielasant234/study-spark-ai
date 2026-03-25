@@ -15,13 +15,11 @@ const materialTypes = [
   { id: "mindmap", label: "Mapa Mental", icon: Network, description: "Organização hierárquica de conceitos" },
 ];
 
-const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB per chunk para evitar timeout no Gateway/Edge Function
+const MAX_CHUNK_SIZE = 5 * 1024 * 1024;
 
 export default function GeneratePage() {
   const parseAndSaveFlashcards = async (raw: string, sourceContent: string) => {
     let cards: { front: string; back: string }[] = [];
-
-    // Try JSON parse first (AI often returns pure JSON)
     try {
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
@@ -30,9 +28,8 @@ export default function GeneratePage() {
           cards = parsed.filter((c: any) => c.front && c.back).map((c: any) => ({ front: c.front, back: c.back }));
         }
       }
-    } catch { /* fall through to markdown parsing */ }
+    } catch { /* fall through */ }
 
-    // Fallback: parse markdown patterns
     if (cards.length === 0) {
       const lines = raw.split('\n');
       let currentQ = '';
@@ -58,7 +55,6 @@ export default function GeneratePage() {
         front: c.front, back: c.back, subject, next_review: new Date().toISOString(),
       })));
       if (error) {
-        console.error('Error saving flashcards:', error);
         toast({ title: 'Erro ao salvar flashcards', description: error.message, variant: 'destructive' });
       } else {
         toast({ title: `${cards.length} flashcards salvos!`, description: 'Disponíveis na página de Flashcards.' });
@@ -87,7 +83,6 @@ export default function GeneratePage() {
     try {
       const res = await generateMaterial(content, selectedType);
       setResult(res);
-
       const typeLabel = materialTypes.find((t) => t.id === selectedType)?.label || selectedType;
       await supabase.from("generated_materials").insert({
         title: `${typeLabel} - ${content.slice(0, 50)}...`,
@@ -95,12 +90,9 @@ export default function GeneratePage() {
         content: res,
         source_preview: content.slice(0, 200),
       });
-
-      // If flashcards, parse and save to flashcards table
       if (selectedType === "flashcards") {
         await parseAndSaveFlashcards(res, content);
       }
-
       toast({ title: "Material gerado!", description: "Seu material de estudo está pronto e foi salvo." });
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Erro ao gerar material", variant: "destructive" });
@@ -125,7 +117,6 @@ export default function GeneratePage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.type === "text/plain" || file.name.endsWith(".md") || file.name.endsWith(".txt")) {
       const text = await file.text();
       setContent(text);
@@ -133,74 +124,54 @@ export default function GeneratePage() {
     } else if (file.type.startsWith("audio/") || file.name.match(/\.(mp3|wav|m4a|ogg|webm|aac|flac)$/i)) {
       await handleAudioTranscription(file);
     } else {
-      toast({
-        title: "Formato não suportado",
-        description: "Use arquivos .txt, .md ou áudio (mp3, wav, m4a, ogg).",
-        variant: "destructive",
-      });
+      toast({ title: "Formato não suportado", description: "Use arquivos .txt, .md ou áudio.", variant: "destructive" });
     }
-    // Reset input so same file can be selected again
     e.target.value = "";
   };
 
   const sendAudioChunk = async (chunk: Blob, mimeType: string, chunkIndex?: number, totalChunks?: number): Promise<string> => {
     const formData = new FormData();
-    formData.append("audio", new File([chunk], `chunk.${mimeType.includes("wav") ? "wav" : "mp3"}`, { type: mimeType }));
+    formData.append("audio", new File([chunk], `chunk.mp3`, { type: mimeType }));
     if (chunkIndex !== undefined && totalChunks !== undefined) {
       formData.append("chunkIndex", String(chunkIndex));
       formData.append("totalChunks", String(totalChunks));
     }
-
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`;
     const resp = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
       body: formData,
     });
-
     if (!resp.ok) {
       const errData = await resp.json().catch(() => ({}));
       throw new Error(errData.error || `Erro ao transcrever áudio (${resp.status})`);
     }
-
-    const data = await resp.json();
-    return data.transcription;
+    return (await resp.json()).transcription;
   };
 
   const handleAudioTranscription = async (file: File) => {
     setIsTranscribing(true);
     const mimeType = file.type || "audio/mpeg";
-
     try {
       if (file.size <= MAX_CHUNK_SIZE) {
-        // Small file - send directly
         setTranscriptionProgress("Transcrevendo áudio...");
         const transcription = await sendAudioChunk(file, mimeType);
         setContent(transcription);
-        toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo de conteúdo." });
+        toast({ title: "Áudio transcrito!" });
       } else {
-        // Large file - split into chunks
         const totalChunks = Math.ceil(file.size / MAX_CHUNK_SIZE);
-        toast({ title: "Áudio grande detectado", description: `Dividindo em ${totalChunks} partes para processamento.` });
-
+        toast({ title: "Áudio grande", description: `Dividindo em ${totalChunks} partes.` });
         let fullTranscription = "";
-
         for (let i = 0; i < totalChunks; i++) {
-          setTranscriptionProgress(`Transcrevendo parte ${i + 1} de ${totalChunks}...`);
+          setTranscriptionProgress(`Parte ${i + 1} de ${totalChunks}...`);
           const start = i * MAX_CHUNK_SIZE;
           const end = Math.min(start + MAX_CHUNK_SIZE, file.size);
           const chunk = file.slice(start, end, mimeType);
-
           const chunkTranscription = await sendAudioChunk(chunk, mimeType, i, totalChunks);
           fullTranscription += (fullTranscription ? "\n\n" : "") + chunkTranscription;
-
-          // Update content progressively
           setContent(fullTranscription);
         }
-
-        toast({ title: "Áudio transcrito!", description: `${totalChunks} partes processadas com sucesso.` });
+        toast({ title: "Áudio transcrito!", description: `${totalChunks} partes processadas.` });
       }
     } catch (e: any) {
       toast({ title: "Erro na transcrição", description: e.message, variant: "destructive" });
@@ -213,7 +184,7 @@ export default function GeneratePage() {
   return (
     <div className="space-y-6">
       <div ref={headerRef} className="reveal">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Gerar Materiais</h1>
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">Gerar Materiais</h1>
         <p className="text-sm text-muted-foreground">Cole texto, envie áudio ou arquivo e a IA gera materiais de estudo</p>
       </div>
 
@@ -234,9 +205,9 @@ export default function GeneratePage() {
                 )}
               >
                 <type.icon className="h-4 w-4 flex-shrink-0" />
-                <div>
-                  <p className="font-medium">{type.label}</p>
-                  <p className="text-xs opacity-70">{type.description}</p>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{type.label}</p>
+                  <p className="text-xs opacity-70 hidden sm:block">{type.description}</p>
                 </div>
               </button>
             ))}
@@ -248,7 +219,7 @@ export default function GeneratePage() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Cole aqui o conteúdo da aula, texto, transcrição ou anotações..."
-              rows={12}
+              rows={10}
               disabled={isTranscribing}
               className="w-full rounded-xl border border-border bg-card p-4 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none transition-shadow focus:shadow-md focus:border-primary/30 disabled:opacity-50"
             />
@@ -261,14 +232,14 @@ export default function GeneratePage() {
               </button>
             )}
             <div className="absolute bottom-3 right-3 flex gap-2">
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 sm:px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
                 <Mic className="h-3.5 w-3.5" />
-                Áudio
+                <span className="hidden sm:inline">Áudio</span>
                 <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm,.aac,.flac" className="hidden" onChange={handleFileUpload} />
               </label>
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 sm:px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
                 <Upload className="h-3.5 w-3.5" />
-                Texto
+                <span className="hidden sm:inline">Texto</span>
                 <input type="file" accept=".txt,.md" className="hidden" onChange={handleFileUpload} />
               </label>
             </div>
@@ -287,15 +258,9 @@ export default function GeneratePage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98]"
           >
             {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Gerando...
-              </>
+              <><Loader2 className="h-4 w-4 animate-spin" />Gerando...</>
             ) : (
-              <>
-                <FileText className="h-4 w-4" />
-                Gerar {materialTypes.find((t) => t.id === selectedType)?.label}
-              </>
+              <><FileText className="h-4 w-4" />Gerar {materialTypes.find((t) => t.id === selectedType)?.label}</>
             )}
           </button>
         </div>
@@ -306,29 +271,19 @@ export default function GeneratePage() {
             <h3 className="text-sm font-semibold text-foreground">Resultado</h3>
             {result && (
               <div className="flex items-center gap-1">
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                >
+                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                   {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied ? "Copiado!" : "Copiar"}
                 </button>
-                <button
-                  onClick={handleDownloadPdf}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  PDF
+                <button onClick={handleDownloadPdf} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                  <Download className="h-3.5 w-3.5" />PDF
                 </button>
               </div>
             )}
           </div>
-          <div className="max-h-[500px] overflow-y-auto p-4">
+          <div className="max-h-[400px] sm:max-h-[500px] overflow-y-auto p-4">
             {result ? (
-              <div
-                ref={resultRef}
-                className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-primary"
-              >
+              <div ref={resultRef} className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-primary">
                 <ReactMarkdown>{result}</ReactMarkdown>
               </div>
             ) : (
