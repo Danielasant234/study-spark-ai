@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,51 +6,59 @@
 
 @layer base {
   :root {
-    --background: 150 10% 98%;
-    --foreground: 160 30% 8%;
+    --background: 0 0% 100%;
+    --foreground: 220 20% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 160 30% 8%;
+    --card-foreground: 220 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 160 30% 8%;
+    --popover-foreground: 220 20% 12%;
 
-    --primary: 158 64% 32%;
+    --primary: 210 75% 35%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 155 20% 93%;
-    --secondary-foreground: 158 40% 20%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 25%;
 
-    --muted: 150 12% 94%;
-    --muted-foreground: 160 10% 45%;
+    --muted: 220 12% 95%;
+    --muted-foreground: 220 10% 48%;
 
-    --accent: 38 92% 55%;
-    --accent-foreground: 38 90% 15%;
+    --accent: 42 78% 52%;
+    --accent-foreground: 42 80% 12%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 4 65% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 155 15% 90%;
-    --input: 155 15% 90%;
-    --ring: 158 64% 32%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 210 75% 35%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 160 20% 97%;
-    --sidebar-foreground: 160 20% 25%;
-    --sidebar-primary: 158 64% 32%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 155 25% 92%;
-    --sidebar-accent-foreground: 158 40% 20%;
-    --sidebar-border: 155 15% 90%;
-    --sidebar-ring: 158 64% 32%;
+    /* One Piece inspired accent palette */
+    --ocean: 210 75% 35%;
+    --ocean-light: 210 60% 94%;
+    --crimson: 4 65% 52%;
+    --crimson-light: 4 55% 95%;
+    --gold: 42 78% 52%;
+    --gold-light: 42 65% 93%;
 
-    /* Custom tokens */
+    --sidebar-background: 220 16% 98%;
+    --sidebar-foreground: 220 20% 25%;
+    --sidebar-primary: 210 75% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 94%;
+    --sidebar-accent-foreground: 210 60% 28%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 210 75% 35%;
+
+    /* Surface tokens */
     --surface-raised: 0 0% 100%;
-    --surface-sunken: 150 15% 96%;
-    --success: 158 64% 42%;
-    --warning: 38 92% 55%;
-    --info: 210 80% 55%;
+    --surface-sunken: 220 14% 97%;
+    --success: 158 55% 42%;
+    --warning: 42 78% 52%;
+    --info: 210 75% 50%;
   }
 }
 
@@ -61,13 +69,20 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  .font-heading {
+    font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 }
 
@@ -98,4 +113,20 @@
   opacity: 1;
   transform: translateY(0);
   filter: blur(0);
+}
+
+/* Journey progress bar glow */
+.progress-glow {
+  box-shadow: 0 0 8px hsl(var(--ocean) / 0.3);
+}
+
+/* Card left accent border */
+.card-accent-ocean {
+  border-left: 3px solid hsl(var(--ocean));
+}
+.card-accent-crimson {
+  border-left: 3px solid hsl(var(--crimson));
+}
+.card-accent-gold {
+  border-left: 3px solid hsl(var(--gold));
 }
