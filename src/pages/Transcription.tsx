@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 
 type Step = "upload" | "transcribing" | "review" | "analyzing" | "analyzed" | "generating" | "done";
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB para prevenir timeouts na Edge Function
+const CHUNK_SIZE = 5 * 1024 * 1024;
 
 const materialOptions = [
   { id: "summary", label: "Resumo", icon: FileText },
@@ -82,7 +82,6 @@ export default function TranscriptionPage() {
     setCurrentStep("transcribing");
     setProgress(0);
     const mimeType = file.type || "audio/mpeg";
-
     try {
       if (file.size <= CHUNK_SIZE) {
         setProgressLabel("Transcrevendo áudio...");
@@ -92,12 +91,12 @@ export default function TranscriptionPage() {
         setRawTranscription(text);
         setEditedTranscription(text);
         setCurrentStep("review");
-        toast({ title: "Transcrição concluída!", description: "Revise o texto antes de continuar." });
+        toast({ title: "Transcrição concluída!" });
       } else {
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
         let full = "";
         for (let i = 0; i < totalChunks; i++) {
-          setProgressLabel(`Transcrevendo parte ${i + 1} de ${totalChunks}...`);
+          setProgressLabel(`Parte ${i + 1} de ${totalChunks}...`);
           setProgress(Math.round(((i) / totalChunks) * 100));
           const start = i * CHUNK_SIZE;
           const end = Math.min(start + CHUNK_SIZE, file.size);
@@ -127,7 +126,7 @@ export default function TranscriptionPage() {
       if (data?.error) throw new Error(data.error);
       setAnalyzedText(data.result);
       setCurrentStep("analyzed");
-      toast({ title: "Análise concluída!", description: "Revise o resultado e gere os materiais." });
+      toast({ title: "Análise concluída!" });
     } catch (e: any) {
       toast({ title: "Erro na análise", description: e.message, variant: "destructive" });
       setCurrentStep("review");
@@ -147,24 +146,20 @@ export default function TranscriptionPage() {
     setIsGenerating(true);
     const results: Record<string, string> = {};
     const sourceText = analyzedText || editedTranscription;
-
     try {
       for (const type of selectedMaterials) {
         setProgressLabel(`Gerando ${materialOptions.find((m) => m.id === type)?.label}...`);
         const res = await generateMaterial(sourceText, type);
         results[type] = res;
-
         const typeLabel = materialOptions.find((m) => m.id === type)?.label || type;
         await supabase.from("generated_materials").insert({
           title: `${typeLabel} - Transcrição`,
-          type,
-          content: res,
-          source_preview: sourceText.slice(0, 200),
+          type, content: res, source_preview: sourceText.slice(0, 200),
         });
       }
       setGeneratedMaterials(results);
       setCurrentStep("done");
-      toast({ title: "Materiais gerados!", description: `${selectedMaterials.length} material(is) criado(s).` });
+      toast({ title: "Materiais gerados!" });
     } catch (e: any) {
       toast({ title: "Erro ao gerar materiais", description: e.message, variant: "destructive" });
       setCurrentStep("analyzed");
@@ -194,18 +189,17 @@ export default function TranscriptionPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Transcrição de Áudio</h1>
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">Transcrição de Áudio</h1>
         <p className="text-sm text-muted-foreground">Transcreva áudios longos com revisão assistida por IA</p>
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-3 overflow-x-auto">
+      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-2 sm:p-3 overflow-x-auto">
         {steps.map((s, i) => (
           <div key={s.key} className="flex items-center gap-1 flex-shrink-0">
             <div className={cn(
-              "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+              "flex items-center gap-1.5 sm:gap-2 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-medium transition-colors",
               currentStepIndex >= i
                 ? currentStepIndex === i ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
                 : "text-muted-foreground"
@@ -213,76 +207,63 @@ export default function TranscriptionPage() {
               <s.icon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{s.label}</span>
             </div>
-            {i < steps.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />}
+            {i < steps.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground/50 flex-shrink-0" />}
           </div>
         ))}
       </div>
 
-      {/* Step: Upload */}
+      {/* Upload */}
       {currentStep === "upload" && (
-        <div className="rounded-xl border border-border bg-card p-8">
+        <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-              <Upload className="h-8 w-8 text-primary" />
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-primary/10">
+              <Upload className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Envie seu áudio</h2>
+              <h2 className="font-heading text-lg font-semibold text-foreground">Envie seu áudio</h2>
               <p className="mt-1 text-sm text-muted-foreground">Suporte para áudios de 1 a 2 horas (MP3, WAV, M4A)</p>
             </div>
-
             {!file ? (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/50 px-8 py-6 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+                className="flex items-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/50 px-6 sm:px-8 py-5 sm:py-6 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
               >
                 <Upload className="h-5 w-5" />
                 Selecionar arquivo de áudio
               </button>
             ) : (
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex items-center gap-3 rounded-lg bg-secondary px-4 py-3">
-                  <Mic className="h-5 w-5 text-primary" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-foreground">{file.name}</p>
+              <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+                <div className="flex items-center gap-3 rounded-lg bg-secondary px-4 py-3 w-full">
+                  <Mic className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="text-left min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
                     <p className="text-xs text-muted-foreground">{(file.size / (1024 * 1024)).toFixed(1)} MB</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setFile(null); }}
-                    className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-secondary"
-                  >
+                <div className="flex gap-2 w-full">
+                  <button onClick={() => setFile(null)}
+                    className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground hover:bg-secondary">
                     Trocar
                   </button>
-                  <button
-                    onClick={startTranscription}
-                    className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                  >
-                    <Mic className="h-4 w-4" />
-                    Iniciar Transcrição
+                  <button onClick={startTranscription}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                    <Mic className="h-4 w-4" /> Iniciar
                   </button>
                 </div>
               </div>
             )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*,.mp3,.wav,.m4a"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
+            <input ref={fileInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a" className="hidden" onChange={handleFileSelect} />
           </div>
         </div>
       )}
 
-      {/* Step: Transcribing */}
+      {/* Transcribing */}
       {currentStep === "transcribing" && (
-        <div className="rounded-xl border border-border bg-card p-8">
+        <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
           <div className="flex flex-col items-center gap-4 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Transcrevendo áudio...</h2>
+              <h2 className="font-heading text-lg font-semibold text-foreground">Transcrevendo áudio...</h2>
               <p className="mt-1 text-sm text-muted-foreground">{progressLabel}</p>
             </div>
             <div className="w-full max-w-md">
@@ -291,22 +272,22 @@ export default function TranscriptionPage() {
             </div>
             <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
-              Isso pode levar alguns minutos para áudios longos
+              Pode levar alguns minutos
             </div>
           </div>
         </div>
       )}
 
-      {/* Step: Review */}
+      {/* Review */}
       {currentStep === "review" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10">
-                <AlertCircle className="h-5 w-5 text-amber-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-light flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-gold" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-foreground">Transcrição concluída — aguardando revisão</h2>
+                <h2 className="text-sm sm:text-base font-semibold text-foreground">Transcrição concluída — aguardando revisão</h2>
                 <p className="text-xs text-muted-foreground">Revise e corrija o texto antes da análise por IA</p>
               </div>
             </div>
@@ -318,27 +299,23 @@ export default function TranscriptionPage() {
                 <Edit3 className="h-4 w-4" />
                 Editor de Transcrição
               </div>
-              <span className="text-xs text-muted-foreground">{editedTranscription.length} caracteres</span>
+              <span className="text-xs text-muted-foreground">{editedTranscription.length} chars</span>
             </div>
             <textarea
               value={editedTranscription}
               onChange={(e) => setEditedTranscription(e.target.value)}
-              className="w-full min-h-[400px] bg-transparent p-4 text-sm text-foreground outline-none resize-y placeholder:text-muted-foreground"
+              className="w-full min-h-[300px] sm:min-h-[400px] bg-transparent p-4 text-sm text-foreground outline-none resize-y placeholder:text-muted-foreground"
               placeholder="A transcrição aparecerá aqui..."
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setEditedTranscription(rawTranscription)}
-              className="text-xs text-muted-foreground hover:text-foreground underline"
-            >
-              Restaurar transcrição original
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <button onClick={() => setEditedTranscription(rawTranscription)}
+              className="text-xs text-muted-foreground hover:text-foreground underline">
+              Restaurar original
             </button>
-            <button
-              onClick={handleAnalyze}
-              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
-            >
+            <button onClick={handleAnalyze}
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all w-full sm:w-auto justify-center">
               <Sparkles className="h-4 w-4" />
               Analisar Transcrição
             </button>
@@ -346,72 +323,63 @@ export default function TranscriptionPage() {
         </div>
       )}
 
-      {/* Step: Analyzing */}
+      {/* Analyzing */}
       {currentStep === "analyzing" && (
-        <div className="rounded-xl border border-border bg-card p-8">
+        <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
           <div className="flex flex-col items-center gap-4 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Analisando transcrição...</h2>
-              <p className="mt-1 text-sm text-muted-foreground">A IA está corrigindo, organizando e identificando conceitos-chave</p>
+              <h2 className="font-heading text-lg font-semibold text-foreground">Analisando transcrição...</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Corrigindo, organizando e identificando conceitos-chave</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Step: Analyzed */}
+      {/* Analyzed */}
       {currentStep === "analyzed" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 flex-shrink-0">
               <CheckCircle className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">Análise concluída</h2>
-              <p className="text-xs text-muted-foreground">Revise o resultado e selecione os materiais para gerar</p>
+              <h2 className="text-sm sm:text-base font-semibold text-foreground">Análise concluída</h2>
+              <p className="text-xs text-muted-foreground">Revise o resultado e selecione os materiais</p>
             </div>
           </div>
 
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="text-sm font-medium text-foreground">Transcrição Analisada</span>
-              <button
-                onClick={() => { handleDownloadPdf(analyzedText, "Transcrição Analisada"); }}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
+              <button onClick={() => handleDownloadPdf(analyzedText, "Transcrição Analisada")}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
                 <Download className="h-3.5 w-3.5" /> PDF
               </button>
             </div>
-            <div ref={resultRef} className="max-h-[400px] overflow-y-auto p-4 prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
+            <div ref={resultRef} className="max-h-[300px] sm:max-h-[400px] overflow-y-auto p-4 prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
               <ReactMarkdown>{analyzedText}</ReactMarkdown>
             </div>
           </div>
 
-          {/* Material selection */}
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Selecione os materiais para gerar:</h3>
+            <h3 className="text-sm font-semibold text-foreground">Selecione os materiais:</h3>
             <div className="grid grid-cols-2 gap-2">
               {materialOptions.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => toggleMaterial(m.id)}
+                <button key={m.id} onClick={() => toggleMaterial(m.id)}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border p-3 text-sm transition-all",
                     selectedMaterials.includes(m.id)
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border text-muted-foreground hover:bg-secondary"
-                  )}
-                >
+                  )}>
                   <m.icon className="h-4 w-4" />
                   {m.label}
                 </button>
               ))}
             </div>
-            <button
-              onClick={handleGenerateMaterials}
-              disabled={selectedMaterials.length === 0}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
-            >
+            <button onClick={handleGenerateMaterials} disabled={selectedMaterials.length === 0}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all">
               <Sparkles className="h-4 w-4" />
               Gerar {selectedMaterials.length} Material(is)
             </button>
@@ -419,36 +387,34 @@ export default function TranscriptionPage() {
         </div>
       )}
 
-      {/* Step: Generating */}
+      {/* Generating */}
       {currentStep === "generating" && (
-        <div className="rounded-xl border border-border bg-card p-8">
+        <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
           <div className="flex flex-col items-center gap-4 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Gerando materiais...</h2>
+              <h2 className="font-heading text-lg font-semibold text-foreground">Gerando materiais...</h2>
               <p className="mt-1 text-sm text-muted-foreground">{progressLabel}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Step: Done */}
+      {/* Done */}
       {currentStep === "done" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 flex-shrink-0">
                 <CheckCircle className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-foreground">Materiais prontos!</h2>
+                <h2 className="text-sm sm:text-base font-semibold text-foreground">Materiais prontos!</h2>
                 <p className="text-xs text-muted-foreground">Todos os materiais foram gerados e salvos</p>
               </div>
             </div>
-            <button
-              onClick={resetFlow}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-secondary"
-            >
+            <button onClick={resetFlow}
+              className="rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground hover:bg-secondary self-start">
               Nova transcrição
             </button>
           </div>
@@ -459,14 +425,12 @@ export default function TranscriptionPage() {
               <div key={type} className="rounded-xl border border-border bg-card">
                 <div className="flex items-center justify-between border-b border-border px-4 py-3">
                   <span className="text-sm font-medium text-foreground">{label}</span>
-                  <button
-                    onClick={() => handleDownloadPdf(content, label)}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  >
+                  <button onClick={() => handleDownloadPdf(content, label)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
                     <Download className="h-3.5 w-3.5" /> PDF
                   </button>
                 </div>
-                <div className="max-h-[300px] overflow-y-auto p-4 prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
+                <div className="max-h-[250px] sm:max-h-[300px] overflow-y-auto p-4 prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
                   <ReactMarkdown>{content}</ReactMarkdown>
                 </div>
               </div>
