@@ -30,7 +30,12 @@ serve(async (req) => {
 
     // Use efficient base64 encoding (no string concatenation)
     const arrayBuffer = await audioFile.arrayBuffer();
-    const base64Audio = base64Encode(new Uint8Array(arrayBuffer));
+    const uint8 = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < uint8.length; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    const base64Audio = btoa(binary);
 
     const mimeType = audioFile.type || "audio/mpeg";
 
