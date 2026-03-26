@@ -1,8 +1,9 @@
-import { BookOpen, Brain, Compass, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2, Mic } from "lucide-react";
+import { BookOpen, Brain, Compass, GraduationCap, LayoutDashboard, MessageCircle, FileText, Layers, Wand2, Mic, LogOut } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -20,6 +21,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const location = useLocation();
+  const { user, signOut } = useAuth();
   const [sessionsToday, setSessionsToday] = useState(0);
 
   useEffect(() => {
@@ -97,6 +99,20 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
             />
           </div>
           <p className="mt-1 text-[10px] text-muted-foreground">Meta diária: 5 sessões</p>
+        </div>
+
+        {/* User & Logout */}
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+            {user?.user_metadata?.display_name || user?.email}
+          </span>
+          <button
+            onClick={() => { signOut(); onNavigate?.(); }}
+            className="flex items-center gap-1 rounded-lg p-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            title="Sair"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </aside>
