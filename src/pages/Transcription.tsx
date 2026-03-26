@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { generateMaterial } from "@/lib/ai";
 import { downloadMarkdownAsPdf } from "@/lib/pdf";
 import { splitAudioRobustly } from "@/lib/audio-processor";
@@ -35,6 +36,7 @@ function getStepIndex(step: Step): number {
 }
 
 export default function TranscriptionPage() {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [rawTranscription, setRawTranscription] = useState("");
@@ -161,6 +163,7 @@ export default function TranscriptionPage() {
         await supabase.from("generated_materials").insert({
           title: `${typeLabel} - Transcrição`,
           type, content: res, source_preview: sourceText.slice(0, 200),
+          user_id: user?.id,
         });
       }
       setGeneratedMaterials(results);
