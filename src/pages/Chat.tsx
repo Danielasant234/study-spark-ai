@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { streamChat, type Message } from "@/lib/ai";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Conversation = {
   id: string;
@@ -30,6 +31,7 @@ const WELCOME_MSG: Message = {
 };
 
 export default function Chat() {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
@@ -46,7 +48,7 @@ export default function Chat() {
       .from("conversations")
       .select("*")
       .order("updated_at", { ascending: false });
-    if (data) setConversations(data as Conversation[]);
+    if (data) setConversations(data as unknown as Conversation[]);
   };
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function Chat() {
     } else {
       const { data } = await supabase
         .from("conversations")
-        .insert({ messages: msgs as any, title })
+        .insert({ messages: msgs as any, title, user_id: user?.id })
         .select()
         .single();
       if (data) {
