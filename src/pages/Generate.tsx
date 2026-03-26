@@ -124,6 +124,10 @@ export default function GeneratePage() {
 
     if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
       await handlePdfUpload(file);
+    } else if (file.name.match(/\.docx?$/i) || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      await handleDocUpload(file, 'docx');
+    } else if (file.name.match(/\.pptx?$/i) || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+      await handleDocUpload(file, 'pptx');
     } else if (file.type === "text/plain" || file.name.endsWith(".md") || file.name.endsWith(".txt")) {
       const text = await file.text();
       setContent(text);
@@ -133,11 +137,10 @@ export default function GeneratePage() {
     } else {
       toast({
         title: "Formato não suportado",
-        description: "Use arquivos PDF, .txt, .md ou áudio (mp3, wav, etc).",
+        description: "Use arquivos PDF, Word (.docx), Slides (.pptx), .txt, .md ou áudio.",
         variant: "destructive",
       });
     }
-    // Reset input so same file can be selected again
     e.target.value = "";
   };
 
@@ -155,6 +158,27 @@ export default function GeneratePage() {
     } catch (e: any) {
       console.error(e);
       toast({ title: "Erro na leitura do PDF", description: e.message || "Verifique se o PDF está corrompido ou protegido.", variant: "destructive" });
+    } finally {
+      setIsReadingPdf(false);
+      setTranscriptionProgress("");
+    }
+  };
+
+  const handleDocUpload = async (file: File, type: 'docx' | 'pptx') => {
+    setIsReadingPdf(true);
+    const label = type === 'docx' ? 'Word' : 'Slides';
+    setTranscriptionProgress(`Processando arquivo ${label}...`);
+    try {
+      const text = type === 'docx' ? await extractTextFromDocx(file) : await extractTextFromPptx(file);
+      if (!text.trim()) {
+        toast({ title: `${label} vazio ou ilegível`, description: `Não foi possível extrair texto deste arquivo.`, variant: "destructive" });
+        return;
+      }
+      setContent(text);
+      toast({ title: `${label} carregado!`, description: "O conteúdo foi extraído com sucesso." });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: `Erro na leitura do ${label}`, description: e.message || "Verifique se o arquivo está corrompido.", variant: "destructive" });
     } finally {
       setIsReadingPdf(false);
       setTranscriptionProgress("");
@@ -286,8 +310,8 @@ export default function GeneratePage() {
               </label>
               <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 sm:px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
                 <Upload className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Texto / PDF</span>
-                <input type="file" accept=".txt,.md,.pdf" className="hidden" onChange={handleFileUpload} />
+                <span className="hidden sm:inline">Texto / PDF / Word / Slides</span>
+                <input type="file" accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx" className="hidden" onChange={handleFileUpload} />
               </label>
             </div>
           </div>
