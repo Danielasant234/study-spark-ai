@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateMaterial } from "@/lib/ai";
 import { downloadMarkdownAsPdf } from "@/lib/pdf";
+import { splitAudioRobustly } from "@/lib/audio-processor";
 import { Progress } from "@/components/ui/progress";
 
 type Step = "upload" | "transcribing" | "review" | "analyzing" | "analyzed" | "generating" | "done";
@@ -81,27 +82,32 @@ export default function TranscriptionPage() {
     if (!file) return;
     setCurrentStep("transcribing");
     setProgress(0);
-    const mimeType = file.type || "audio/mpeg";
+    
     try {
-      if (file.size <= CHUNK_SIZE) {
+      setProgressLabel("Preparando áudio...");
+      const chunks = await splitAudioRobustly(file, 300, 3, (msg) => {
+        setProgressLabel(msg);
+        setProgress(10); // Mantém progresso fixo em 10% durante preparação local
+      });
+      const totalChunks = chunks.length;
+
+      if (totalChunks === 0) throw new Error("Áudio inválido ou vazio.");
+
+      if (totalChunks === 1) {
         setProgressLabel("Transcrevendo áudio...");
         setProgress(30);
-        const text = await sendChunk(file, mimeType);
+        const text = await sendChunk(chunks[0].blob, "audio/wav");
         setProgress(100);
         setRawTranscription(text);
         setEditedTranscription(text);
         setCurrentStep("review");
         toast({ title: "Transcrição concluída!" });
       } else {
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
         let full = "";
-        for (let i = 0; i < totalChunks; i++) {
-          setProgressLabel(`Parte ${i + 1} de ${totalChunks}...`);
-          setProgress(Math.round(((i) / totalChunks) * 100));
-          const start = i * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, file.size);
-          const chunk = file.slice(start, end, mimeType);
-          const text = await sendChunk(chunk, mimeType, i, totalChunks);
+        for (const chunk of chunks) {
+          setProgressLabel(`Transcrevendo parte ${chunk.index + 1} de ${totalChunks}...`);
+          setProgress(10 + Math.round((chunk.index / totalChunks) * 90));
+          const text = await sendChunk(chunk.blob, "audio/wav", chunk.index, totalChunks);
           full += (full ? "\n\n" : "") + text;
         }
         setProgress(100);

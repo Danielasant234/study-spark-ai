@@ -7,6 +7,8 @@ import { generateMaterial } from "@/lib/ai";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { downloadMarkdownAsPdf } from "@/lib/pdf";
+import { extractTextFromPDF } from "@/lib/pdf-parser";
+import { splitAudioRobustly } from "@/lib/audio-processor";
 
 const materialTypes = [
   { id: "summary", label: "Resumo", icon: FileText, description: "Resumo estruturado com conceitos-chave" },
@@ -67,6 +69,7 @@ export default function GeneratePage() {
   const [result, setResult] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isReadingPdf, setIsReadingPdf] = useState(false);
   const [transcriptionProgress, setTranscriptionProgress] = useState("");
   const [copied, setCopied] = useState(false);
   const headerRef = useReveal();
@@ -117,16 +120,44 @@ export default function GeneratePage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type === "text/plain" || file.name.endsWith(".md") || file.name.endsWith(".txt")) {
+
+    if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+      await handlePdfUpload(file);
+    } else if (file.type === "text/plain" || file.name.endsWith(".md") || file.name.endsWith(".txt")) {
       const text = await file.text();
       setContent(text);
       toast({ title: "Arquivo carregado", description: file.name });
     } else if (file.type.startsWith("audio/") || file.name.match(/\.(mp3|wav|m4a|ogg|webm|aac|flac)$/i)) {
       await handleAudioTranscription(file);
     } else {
-      toast({ title: "Formato não suportado", description: "Use arquivos .txt, .md ou áudio.", variant: "destructive" });
+      toast({
+        title: "Formato não suportado",
+        description: "Use arquivos PDF, .txt, .md ou áudio (mp3, wav, etc).",
+        variant: "destructive",
+      });
     }
+    // Reset input so same file can be selected again
     e.target.value = "";
+  };
+
+  const handlePdfUpload = async (file: File) => {
+    setIsReadingPdf(true);
+    setTranscriptionProgress("Processando arquivo PDF...");
+    try {
+      const text = await extractTextFromPDF(file);
+      if (!text.trim()) {
+        toast({ title: "PDF vazio ou ilegível", description: "Não foi possível extrair texto deste PDF.", variant: "destructive" });
+        return;
+      }
+      setContent(text);
+      toast({ title: "PDF carregado e lido!", description: "O texto foi extraído com sucesso." });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Erro na leitura do PDF", description: e.message || "Verifique se o PDF está corrompido ou protegido.", variant: "destructive" });
+    } finally {
+      setIsReadingPdf(false);
+      setTranscriptionProgress("");
+    }
   };
 
   const sendAudioChunk = async (chunk: Blob, mimeType: string, chunkIndex?: number, totalChunks?: number): Promise<string> => {
@@ -151,27 +182,42 @@ export default function GeneratePage() {
 
   const handleAudioTranscription = async (file: File) => {
     setIsTranscribing(true);
-    const mimeType = file.type || "audio/mpeg";
+    setTranscriptionProgress("Preparando áudio...");
+
     try {
-      if (file.size <= MAX_CHUNK_SIZE) {
+      const chunks = await splitAudioRobustly(file, 300, 3, (msg) => setTranscriptionProgress(msg));
+      const totalChunks = chunks.length;
+
+      if (totalChunks === 0) {
+        throw new Error("Áudio inválido ou vazio.");
+      }
+
+      if (totalChunks === 1) {
+        // Envio direto
         setTranscriptionProgress("Transcrevendo áudio...");
-        const transcription = await sendAudioChunk(file, mimeType);
+        const transcription = await sendAudioChunk(chunks[0].blob, "audio/wav");
         setContent(transcription);
-        toast({ title: "Áudio transcrito!" });
+        toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo de conteúdo." });
       } else {
-        const totalChunks = Math.ceil(file.size / MAX_CHUNK_SIZE);
-        toast({ title: "Áudio grande", description: `Dividindo em ${totalChunks} partes.` });
+        toast({ title: "Áudio longo detectado", description: `Dividido em ${totalChunks} partes otimizadas.` });
+        
         let fullTranscription = "";
-        for (let i = 0; i < totalChunks; i++) {
-          setTranscriptionProgress(`Parte ${i + 1} de ${totalChunks}...`);
-          const start = i * MAX_CHUNK_SIZE;
-          const end = Math.min(start + MAX_CHUNK_SIZE, file.size);
-          const chunk = file.slice(start, end, mimeType);
-          const chunkTranscription = await sendAudioChunk(chunk, mimeType, i, totalChunks);
+
+        for (const chunk of chunks) {
+          setTranscriptionProgress(`Transcrevendo parte ${chunk.index + 1} de ${totalChunks}...`);
+          
+          const chunkTranscription = await sendAudioChunk(
+            chunk.blob, 
+            "audio/wav", 
+            chunk.index, 
+            totalChunks
+          );
+          
           fullTranscription += (fullTranscription ? "\n\n" : "") + chunkTranscription;
           setContent(fullTranscription);
         }
-        toast({ title: "Áudio transcrito!", description: `${totalChunks} partes processadas.` });
+
+        toast({ title: "Áudio transcrito!", description: `${totalChunks} partes processadas com sucesso.` });
       }
     } catch (e: any) {
       toast({ title: "Erro na transcrição", description: e.message, variant: "destructive" });
@@ -220,10 +266,10 @@ export default function GeneratePage() {
               onChange={(e) => setContent(e.target.value)}
               placeholder="Cole aqui o conteúdo da aula, texto, transcrição ou anotações..."
               rows={10}
-              disabled={isTranscribing}
+              disabled={isTranscribing || isReadingPdf}
               className="w-full rounded-xl border border-border bg-card p-4 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none transition-shadow focus:shadow-md focus:border-primary/30 disabled:opacity-50"
             />
-            {content && !isTranscribing && (
+            {content && !isTranscribing && !isReadingPdf && (
               <button
                 onClick={() => setContent("")}
                 className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -239,22 +285,22 @@ export default function GeneratePage() {
               </label>
               <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 sm:px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
                 <Upload className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Texto</span>
-                <input type="file" accept=".txt,.md" className="hidden" onChange={handleFileUpload} />
+                <span className="hidden sm:inline">Texto / PDF</span>
+                <input type="file" accept=".txt,.md,.pdf" className="hidden" onChange={handleFileUpload} />
               </label>
             </div>
           </div>
 
-          {isTranscribing && (
+          {(isTranscribing || isReadingPdf) && (
             <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm text-primary">
               <Loader2 className="h-4 w-4 animate-spin" />
-              {transcriptionProgress || "Transcrevendo áudio..."}
+              {transcriptionProgress || (isReadingPdf ? "Lendo PDF..." : "Transcrevendo áudio...")}
             </div>
           )}
 
           <button
             onClick={handleGenerate}
-            disabled={isLoading || isTranscribing || !content.trim()}
+            disabled={isLoading || isTranscribing || isReadingPdf || !content.trim()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98]"
           >
             {isLoading ? (

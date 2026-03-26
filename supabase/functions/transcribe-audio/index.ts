@@ -39,16 +39,23 @@ serve(async (req) => {
 
     const mimeType = audioFile.type || "audio/mpeg";
 
-    const systemPrompt = isChunked
-      ? `Você é um transcritor profissional. Transcreva o áudio com precisão total em português brasileiro.
-Este é o trecho ${Number(chunkIndex) + 1} de ${totalChunks} de um áudio longo.
-Transcreva APENAS o conteúdo deste trecho. Organize em parágrafos lógicos.
-Se houver múltiplos falantes, indique com "Falante 1:", "Falante 2:", etc.
-NÃO adicione resumo ou conceitos-chave neste trecho.`
-      : `Você é um transcritor profissional. Transcreva o áudio com precisão total em português brasileiro. 
-Organize a transcrição em parágrafos lógicos. Se houver múltiplos falantes, indique com "Falante 1:", "Falante 2:", etc.
-Ao final, adicione uma seção "## Resumo" com os pontos principais do áudio.
-Ao final do resumo, adicione "## Conceitos-chave" listando os conceitos mais importantes mencionados.`;
+    const isLastChunk = isChunked && Number(chunkIndex) === Number(totalChunks) - 1;
+
+    const systemPrompt = isChunked && !isLastChunk
+      ? `Você é um transcritor profissional especializado em reedição textual. Transcreva o áudio com extrema precisão em português brasileiro.
+Este é o trecho ${Number(chunkIndex) + 1} de ${totalChunks} de um áudio contínuo.
+1. Transcreva APENAS o conteúdo deste trecho.
+2. Organize cuidadosamente o texto em parágrafos bem estruturados.
+3. Corrija a pontuação e a gramática para melhorar a legibilidade, garantindo que o significado e a fluidez originais NÃO sejam alterados.
+4. Caso haja múltiplos falantes, sinalize como "Falante 1:", "Falante 2:", etc.
+5. Em hipótese alguma insira sumários, considerações finais ou formatações extras ao final deste trecho (apenas a transcrição contínua).`
+      : `Você é um transcritor profissional especializado em reedição textual. Transcreva o áudio com extrema precisão em português brasileiro.
+${isChunked ? `Este é o ÚLTIMO trecho (${Number(chunkIndex) + 1} de ${totalChunks}) rotineiramente transcrito de um áudio contínuo.` : `Transcreva este arquivo de áudio completamente.`}
+1. Organize cuidadosamente o texto em parágrafos bem estruturados.
+2. Corrija a pontuação e a gramática para melhorar a legibilidade, garantindo que o significado original NÃO seja alterado.
+3. Caso haja múltiplos falantes, sinalize como "Falante 1:", "Falante 2:", etc.
+4. Ao final da transcrição, adicione uma seção obrigatória "## Tópicos Principais", destacando os temas centrais abordados.
+5. Liste em "## Resumo" uma rápida síntese do áudio e em "## Conceitos-chave" as palavras mais densas abordadas.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
