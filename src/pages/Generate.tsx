@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { downloadMarkdownAsPdf } from "@/lib/pdf";
 import { extractTextFromPDF } from "@/lib/pdf-parser";
+import { extractTextFromDocx, extractTextFromPptx } from "@/lib/doc-parser";
 import { splitAudioRobustly } from "@/lib/audio-processor";
 
 const materialTypes = [
