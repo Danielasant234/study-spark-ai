@@ -21,6 +21,7 @@ export type Database = {
           messages: Json
           title: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -28,6 +29,7 @@ export type Database = {
           messages?: Json
           title?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -35,6 +37,7 @@ export type Database = {
           messages?: Json
           title?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -56,6 +59,7 @@ export type Database = {
           times_correct: number
           times_incorrect: number
           total_time_ms: number
+          user_id: string | null
         }
         Insert: {
           back: string
@@ -74,6 +78,7 @@ export type Database = {
           times_correct?: number
           times_incorrect?: number
           total_time_ms?: number
+          user_id?: string | null
         }
         Update: {
           back?: string
@@ -92,6 +97,7 @@ export type Database = {
           times_correct?: number
           times_incorrect?: number
           total_time_ms?: number
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -111,6 +117,7 @@ export type Database = {
           source_preview: string | null
           title: string
           type: string
+          user_id: string | null
         }
         Insert: {
           content: string
@@ -119,6 +126,7 @@ export type Database = {
           source_preview?: string | null
           title: string
           type?: string
+          user_id?: string | null
         }
         Update: {
           content?: string
@@ -127,6 +135,31 @@ export type Database = {
           source_preview?: string | null
           title?: string
           type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -142,6 +175,7 @@ export type Database = {
           subject: string | null
           total_cards: number
           total_time_ms: number
+          user_id: string | null
         }
         Insert: {
           cards_reviewed?: Json
@@ -154,6 +188,7 @@ export type Database = {
           subject?: string | null
           total_cards?: number
           total_time_ms?: number
+          user_id?: string | null
         }
         Update: {
           cards_reviewed?: Json
@@ -166,6 +201,7 @@ export type Database = {
           subject?: string | null
           total_cards?: number
           total_time_ms?: number
+          user_id?: string | null
         }
         Relationships: []
       }
