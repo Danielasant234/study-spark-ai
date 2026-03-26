@@ -7,6 +7,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { calculateSM2, isDueForReview, getMasteryLevel, MASTERY_COLORS, MASTERY_LABELS } from "@/lib/sm2";
 import { toast } from "@/hooks/use-toast";
 
@@ -43,6 +44,7 @@ const STUDY_MODES = [
 type View = 'menu' | 'study' | 'stats';
 
 export default function Flashcards() {
+  const { user } = useAuth();
   const [allCards, setAllCards] = useState<Flashcard[]>([]);
   const [studyDeck, setStudyDeck] = useState<Flashcard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -148,6 +150,7 @@ export default function Flashcards() {
         total_cards: total, correct: sessionCorrect + (isCorrect ? 1 : 0),
         incorrect: sessionIncorrect + (isCorrect ? 0 : 1),
         total_time_ms: elapsed, ended_at: new Date().toISOString(),
+        user_id: user?.id,
       });
       setSessionComplete(true);
     } else {

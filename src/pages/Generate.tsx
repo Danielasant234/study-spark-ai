@@ -6,6 +6,7 @@ import { useReveal } from "@/hooks/useReveal";
 import { generateMaterial } from "@/lib/ai";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { downloadMarkdownAsPdf } from "@/lib/pdf";
 import { extractTextFromPDF } from "@/lib/pdf-parser";
 import { extractTextFromDocx, extractTextFromPptx } from "@/lib/doc-parser";
@@ -21,6 +22,7 @@ const materialTypes = [
 const MAX_CHUNK_SIZE = 5 * 1024 * 1024;
 
 export default function GeneratePage() {
+  const { user } = useAuth();
   const parseAndSaveFlashcards = async (raw: string, sourceContent: string) => {
     let cards: { front: string; back: string }[] = [];
     try {
@@ -55,7 +57,7 @@ export default function GeneratePage() {
     if (cards.length > 0) {
       const subject = sourceContent.slice(0, 30).replace(/[^a-zA-ZÀ-ÿ\s]/g, '').trim() || 'Geral';
       const { error } = await supabase.from('flashcards').insert(cards.map(c => ({
-        front: c.front, back: c.back, subject, next_review: new Date().toISOString(),
+        front: c.front, back: c.back, subject, next_review: new Date().toISOString(), user_id: user?.id,
       })));
       if (error) {
         toast({ title: 'Erro ao salvar flashcards', description: error.message, variant: 'destructive' });
@@ -93,6 +95,7 @@ export default function GeneratePage() {
         type: selectedType,
         content: res,
         source_preview: content.slice(0, 200),
+        user_id: user?.id,
       });
       if (selectedType === "flashcards") {
         await parseAndSaveFlashcards(res, content);
