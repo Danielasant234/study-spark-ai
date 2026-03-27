@@ -44,7 +44,7 @@ export default function Subjects() {
     queryKey: ["subjects", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("subjects")
+        .from("subjects" as any)
         .select("*")
         .order("name", { ascending: true });
       if (error) throw error;
@@ -56,8 +56,8 @@ export default function Subjects() {
   const addSubjectMutation = useMutation({
     mutationFn: async (newSub: { name: string; color: string }) => {
       const { data, error } = await supabase
-        .from("subjects")
-        .insert({ name: newSub.name, color: newSub.color, user_id: user?.id || '' })
+        .from("subjects" as any)
+        .insert({ name: newSub.name, color: newSub.color, user_id: user?.id || '' } as any)
         .select()
         .single();
       if (error) throw error;
@@ -76,8 +76,8 @@ export default function Subjects() {
   const updateSubjectMutation = useMutation({
     mutationFn: async (sub: { id: string; name: string; color: string }) => {
       const { error } = await supabase
-        .from("subjects")
-        .update({ name: sub.name, color: sub.color })
+        .from("subjects" as any)
+        .update({ name: sub.name, color: sub.color } as any)
         .eq("id", sub.id);
       if (error) throw error;
     },
@@ -93,7 +93,7 @@ export default function Subjects() {
 
   const deleteSubjectMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("subjects").delete().eq("id", id);
+      const { error } = await supabase.from("subjects" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
