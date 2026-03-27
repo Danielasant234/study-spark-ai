@@ -11,6 +11,7 @@ import { downloadMarkdownAsPdf } from "@/lib/pdf";
 import { extractTextFromPDF } from "@/lib/pdf-parser";
 import { extractTextFromDocx, extractTextFromPptx } from "@/lib/doc-parser";
 import { splitAudioRobustly } from "@/lib/audio-processor";
+import { useQuery } from "@tanstack/react-query";
 
 const materialTypes = [
   { id: "summary", label: "Resumo", icon: FileText, description: "Resumo estruturado com conceitos-chave" },
@@ -55,9 +56,8 @@ export default function GeneratePage() {
     }
 
     if (cards.length > 0) {
-      const subject = sourceContent.slice(0, 30).replace(/[^a-zA-ZÀ-ÿ\s]/g, '').trim() || 'Geral';
       const { error } = await supabase.from('flashcards').insert(cards.map(c => ({
-        front: c.front, back: c.back, subject, next_review: new Date().toISOString(), user_id: user?.id,
+        front: c.front, back: c.back, subject: selectedSubject, next_review: new Date().toISOString(), user_id: user?.id,
       })));
       if (error) {
         toast({ title: 'Erro ao salvar flashcards', description: error.message, variant: 'destructive' });
@@ -69,12 +69,23 @@ export default function GeneratePage() {
 
   const [content, setContent] = useState("");
   const [selectedType, setSelectedType] = useState("summary");
+  const [selectedSubject, setSelectedSubject] = useState("Geral");
   const [result, setResult] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isReadingPdf, setIsReadingPdf] = useState(false);
   const [transcriptionProgress, setTranscriptionProgress] = useState("");
   const [copied, setCopied] = useState(false);
+
+  const { data: subjects = [] } = useQuery({
+    queryKey: ["subjects", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("subjects").select("*").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
   const headerRef = useReveal();
   const formRef = useReveal();
   const resultRef = useRef<HTMLDivElement>(null);
@@ -96,6 +107,7 @@ export default function GeneratePage() {
         content: res,
         source_preview: content.slice(0, 200),
         user_id: user?.id,
+        subject: selectedSubject,
       });
       if (selectedType === "flashcards") {
         await parseAndSaveFlashcards(res, content);
@@ -260,6 +272,26 @@ export default function GeneratePage() {
       <div ref={headerRef} className="reveal">
         <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">Gerar Materiais</h1>
         <p className="text-sm text-muted-foreground">Cole texto, envie áudio ou arquivo e a IA gera materiais de estudo</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center bg-card border border-border p-4 rounded-xl shadow-sm reveal" style={{ transitionDelay: "50ms" }}>
+        <div className="w-full sm:w-auto flex-1 max-w-sm">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block ml-1">Matéria / Categoria</label>
+          <select
+            value={selectedSubject}
+            onChange={(e) => setSelectedSubject(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/30 transition-all cursor-pointer"
+          >
+            <option value="Geral">Geral</option>
+            {subjects.map((s: any) => (
+              <option key={s.id} value={s.name}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="hidden sm:block h-10 w-px bg-border mx-2" />
+        <p className="text-xs text-muted-foreground italic max-w-[200px]">
+          Selecione a matéria para organizar automaticamente o conteúdo gerado.
+        </p>
       </div>
 
       <div ref={formRef} className="reveal grid gap-6 lg:grid-cols-2" style={{ transitionDelay: "100ms" }}>

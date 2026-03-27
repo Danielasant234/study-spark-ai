@@ -1,114 +1,149 @@
 # 🚀 Study Spark AI
 
-Bem-vindo ao **Study Spark AI**, uma plataforma inteligente e revolucionária projetada para transformar automaticamente anotações, apostilas, slides e até longas palestras em áudio num ecossistema completo de materiais de estudo estruturados através de Inteligência Artificial.
+Plataforma inteligente que transforma anotações, apostilas, slides e áudios longos em materiais de estudo estruturados usando Inteligência Artificial.
 
 ---
 
-## 🌟 Funcionalidades Principais
+## 🌟 Funcionalidades
 
-- **🧠 Geração Inteligente de Materiais**: Converta qualquer conteúdo instantaneamente em:
-  - **Resumos**: Textos bem estruturados focados nos conceitos centrais.
-  - **Flashcards**: Cartões de perguntas e respostas para revisão espaçada.
-  - **Listas de Exercícios**: Prática com gabarito incluído.
-  - **Mapas Mentais**: Estruturação hierárquica e conexões lógicas.
+### 🧠 Geração de Materiais com IA
+- **Resumos** — Textos estruturados com conceitos-chave
+- **Flashcards** — Perguntas e respostas com revisão espaçada (algoritmo SM-2)
+- **Exercícios** — Listas de exercícios com gabarito
+- **Mapas Mentais** — Organização hierárquica de conceitos
 
-- **🎙️ Transcrição Avançada de Áudios Longos (1 a 2 horas)**:
-  - Motor de processamento frontal utilizando a **Web Audio API** (`OfflineAudioContext`).
-  - Decodificação rápida e conversão (downmix) na memória local.
-  - Fragmentação com sobreposição (*overlap*), exportando pacotes limpos no formato `.wav` para garantir que **nenhuma palavra ou contexto seja perdido na transcrição**.
-  - Formatação com IA para corrigir falhas de pontuação e gramática, além da sumarização e extração fluída de **Tópicos Principais**.
+### 🎙️ Transcrição de Áudios Longos (1-2h)
+- Processamento via **Web Audio API** (`OfflineAudioContext`) no navegador
+- Fragmentação inteligente com sobreposição (*overlap*) em `.wav` — nenhuma palavra é perdida
+- Formatação com IA para correção de pontuação e extração de **tópicos principais**
 
-- **📄 Suporte a Múltiplos Formatos (Client-Side Parsing)**:
-  - Extração de texto **completamente via navegador** sem estourar limites de backend.
-  - Suporta: Arquivos `.txt`, **PDFs** (completos e extensos via `pdfjs-dist`), Apresentações PowerPoint (`.pptx`) e Documentos Word (`.docx`).
+### 📄 Suporte a Múltiplos Formatos
+Extração de texto **100% client-side**, sem limites de backend:
+- `.txt`, **PDFs** (via `pdfjs-dist`), `.pptx` (PowerPoint), `.docx` (Word)
 
-- **🎨 Interface e Usabilidade**:
-  - Design estético, acessível e ultrarrápido criado com TailwindCSS e componentes Shadcn UI.
-  - Suporte total a temas (*Light/Dark mode*).
-  - Exportação nativa dos materiais gerados diretamente para PDF estilizado para leitura offline.
+### 📊 Dashboard Dinâmico
+- **Métricas em tempo real** — Matérias, flashcards, resumos e tempo estudado baseados nos dados reais do banco
+- **Diário de Bordo** — Feed de atividades ordenado cronologicamente com timestamps relativos
+- **StudyAI Recomenda** — Widget com dica de estudo personalizada gerada pela IA com base no seu progresso
+- **Ações rápidas** — Botões para revisar, gerar materiais e conversar com a IA
+
+### 📚 Gerenciamento de Matérias
+- CRUD completo (criar, editar, excluir) com persistência no Supabase
+- Seletor de cor personalizado para cada matéria
+- Organização automática dos materiais gerados por matéria/categoria
+- Filtragem por matéria na biblioteca de materiais
+
+### 💬 Chat com Assistente IA
+- Interface de conversação em tempo real com streaming
+- Histórico de conversas salvo automaticamente no banco
+
+### 🎨 Interface Premium
+- Design com TailwindCSS e componentes **Shadcn/UI**
+- Tema claro e escuro
+- Animações suaves e micro-interações
+- Exportação nativa para **PDF** estilizado
 
 ---
 
-## 🛠 Tecnologias e Bibliotecas Utilizadas
-
-O sistema é contruído sobre uma stack moderna e de alta escalabilidade:
+## 🛠 Stack Tecnológica
 
 ### Frontend
-* **React 18** e **TypeScript**: Base sólida e fortemente tipada.
-* **Vite**: Bundler super veloz para uma experiência de desenvolvimento instantânea.
-* **Tailwind CSS**: Estilização versátil via classes utilitárias.
-* **Shadcn/UI & Radix UI**: Componentes semânticos, acessíveis e customizáveis (Diálogos, Accordions, Tabs, Tooltips, etc).
-* **TanStack React Query**: Gerenciamento sofisticado de estado assíncrono e cache de servidores.
-* **React Markdown**: Motor inteligente de renderização em tempo real das entregas da Inteligência Artificial.
-* **Lucide React**: Biblioteca refinada de ícones em SVG.
-* **pdfjs-dist**: Leitor dinâmico do framework da Mozilla para PDFs nativos na web.
+| Tecnologia | Uso |
+|---|---|
+| **React 18** + **TypeScript** | Base tipada e reativa |
+| **Vite** | Bundler ultra-rápido com HMR |
+| **Tailwind CSS** | Estilização via classes utilitárias |
+| **Shadcn/UI** + **Radix UI** | Componentes acessíveis e customizáveis |
+| **TanStack React Query** | Cache e gerenciamento de estado assíncrono |
+| **React Markdown** | Renderização dos materiais gerados pela IA |
+| **Lucide React** | Ícones SVG |
+| **date-fns** | Formatação de datas relativas (pt-BR) |
+| **pdfjs-dist** | Leitura de PDFs no navegador |
 
-### Backend & Inteligência Artificial
-* **Supabase**: Toda nossa infraestrutura, incluindo:
-  * Banco de Dados Potente em **PostgreSQL** para o histórico dos Flashcards, Disciplinas e Materiais Gerados.
-  * Autenticação e Storage (Armazenamento de imagens/assets).
-  * **Edge Functions** rodando em *Deno* para processamentos sigilosos sem servidor.
-* **IA API Gateway (Lovable / Gemini 2.5 Flash)**: O núcleo de inteligência para orquestrar toda a pedagogia generativa, chamadas lógicas e sumarições com precisão clínica da linguagem e alta janela de contexto temporal.
-
----
-
-## ⚙️ Como Funciona a Arquitetura Backend
-
-### Supabase Edge Functions
-A aplicação delega funções computacionalmente exigentes (aquilo que não ocorre no client-side) a _Edge Functions_ localizadas em `supabase/functions`:
-1. **`transcribe-audio`**: Recebe áudios otimizados (ou framentados) do Frontend e negocia com a API de IA a transcrição exata e formatada parágrafo a parágrafo.
-2. **`analyze-transcription`**: Revê profundamente fluxos textuais limpos antes de transformá-los em objetos de estudo conclusivos.
-3. **`generate-material`**: Orquestradora especialista: interpreta um conteúdo referenciado pelo usuário no Client-side e desenha estruturas educacionais assertivas (ex: Flashcards e resumos) baseando-se no que foi demandado.
+### Backend & IA
+| Tecnologia | Uso |
+|---|---|
+| **Supabase (PostgreSQL)** | Banco de dados, autenticação, storage, RLS |
+| **Edge Functions (Deno)** | Processamento serverless seguro |
+| **API de IA (Gemini 2.5 Flash)** | Geração de materiais, chat, transcrição |
 
 ---
 
-## 🚀 Como Executar o Projeto Localmente
+## 📦 Estrutura do Banco de Dados
 
-### 1. Pré-Requisitos
-Certifique-se de possuir instalado em sua máquina:
-* [Node.js](https://nodejs.org/en/) (Versão LTS, preferencialmente Node 18+)
-* [npm](https://www.npmjs.com/) ou [yarn](https://yarnpkg.com/).
+| Tabela | Descrição |
+|---|---|
+| `subjects` | Matérias do estudante (nome, cor, progresso) |
+| `flashcards` | Cartões de estudo com revisão espaçada SM-2 |
+| `generated_materials` | Resumos, exercícios e mapas mentais salvos |
+| `review_sessions` | Sessões de revisão com métricas de desempenho |
+| `conversations` | Histórico do chat com a IA |
+| `profiles` | Perfis de usuário |
 
-### 2. Passo-A-Passo de Instalação
+---
 
-Clone o projeto ou entre no diretório raiz:
+## ⚙️ Edge Functions
+
+| Função | Descrição |
+|---|---|
+| `chat` | Assistente de estudo com streaming |
+| `generate-material` | Geração de materiais estruturados a partir de texto |
+| `transcribe-audio` | Transcrição de áudios segmentados |
+| `analyze-transcription` | Análise e formatação de transcrições |
+
+---
+
+## 🚀 Como Executar
+
+### Pré-Requisitos
+- [Node.js](https://nodejs.org/) (v18+)
+- npm ou yarn
+
+### Instalação
+
 ```bash
 cd study-spark-ai
-```
-
-Instale as dependências essenciais e auxiliares:
-```bash
 npm install
 ```
 
-### 3. Variáveis de Ambiente
-Crie um arquivo chamado `.env` (ou utilize o `.env.local`) na base de seu projeto e garanta a definição correta das chaves do seu projeto **Supabase**. Dependendo da sua configuração, inclua:
+### Variáveis de Ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
 
 ```bash
 VITE_SUPABASE_URL=seu-supabase-project-url
 VITE_SUPABASE_PUBLISHABLE_KEY=sua-supabase-anon-key
 ```
-*(Nota: as chaves para as Edge Functions como o `LOVABLE_API_KEY` devem ser inseridas e declaradas diretamente no ambiente do Cloud do Supabase).*
 
-### 4. Executando o Servidor de Desenvolvimento
-Rode o projeto localmente com as funcionalidades em tempo real (incluindo HMR para edições de código):
+> As chaves das Edge Functions (ex: `LOVABLE_API_KEY`) devem ser configuradas diretamente no painel do Supabase.
+
+### Executando
 
 ```bash
 npm run dev
 ```
 
-Acesse via navegador pela URI informada no seu terminal, normalmente `http://localhost:5173`.
+Acesse `http://localhost:5173` no navegador.
+
+### Build de Produção
+
+```bash
+npm run build
+npm run preview
+```
 
 ---
 
-## 🎯 Como Usar a Plataforma
+## 🎯 Como Usar
 
-1. **Dashboard & Disciplinas**: No primeiro acesso, estruture sua rotina separando-a por "Assuntos", facilitando a classificação.
-2. **Gerar Material Rápido**: Clique na guia de *Gerar Materiais*, faça o upload de um texto, um PDF, um documento Word ou carregue um arquivo longo de áudio pelo menu flutuante e aguarde a indexação (toda na tela cliente). Com o envio decodificado, clique na emissão em abas de acordo com a sua preferência (`Resumo`, `Flashcards`, `Mapa Mental`).
-3. **Página de Transcrições**: Quando houver gravações originais de sala de aula, anexe o áudio na guia **Transcrição** e tenha um ambiente híbrido para você primeiro revisar fisicamente cada linha documentada antes de delegar para a IA montar seus tópicos pedagógicos.
-4. **Flashcards**: Todo item catalogado da IA pode gerar cartões com respostas ocultas e botões rotacionais. Teste sua fixação na página própria de `Flashcards`!
-5. **PDF Offline**: Goste de revisar no papel? Pressione <kbd>Download PDF</kbd> no frame do Resultado para que o CSS de impressão renderize tudo com limpeza estética perfeita.
+1. **Cadastre-se/Login** — Autenticação via Supabase Auth
+2. **Crie Matérias** — Organize por área de conhecimento com cores personalizadas
+3. **Gere Material** — Cole texto, envie PDF/DOCX/PPTX ou áudio e escolha o tipo de material
+4. **Revise Flashcards** — Use o sistema de repetição espaçada para fixar conteúdo
+5. **Acompanhe seu Progresso** — O Dashboard mostra métricas e atividades em tempo real
+6. **Converse com a IA** — Tire dúvidas diretamente com o assistente inteligente
+7. **Exporte para PDF** — Baixe qualquer material gerado com formatação profissional
 
 ---
 
-> Desenvolvido para maximizar o potencial estudantil e poupar incontáveis horas de fichamento de conteúdo, aliando acessibilidade Frontend com as melhores práticas de Arquitetura Serverless. Bons estudos! 📚✨
+> Desenvolvido para maximizar o potencial estudantil, aliando acessibilidade Frontend com as melhores práticas de Arquitetura Serverless. Bons estudos! 📚✨

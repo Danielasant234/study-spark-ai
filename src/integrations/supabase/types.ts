@@ -115,6 +115,7 @@ export type Database = {
           created_at: string
           id: string
           source_preview: string | null
+          subject: string | null
           title: string
           type: string
           user_id: string | null
@@ -124,6 +125,7 @@ export type Database = {
           created_at?: string
           id?: string
           source_preview?: string | null
+          subject?: string | null
           title: string
           type?: string
           user_id?: string | null
@@ -133,6 +135,7 @@ export type Database = {
           created_at?: string
           id?: string
           source_preview?: string | null
+          subject?: string | null
           title?: string
           type?: string
           user_id?: string | null
@@ -202,6 +205,39 @@ export type Database = {
           total_cards?: number
           total_time_ms?: number
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      subjects: {
+        Row: {
+          id: string
+          name: string
+          color: string
+          cards: number
+          summaries: number
+          progress: number
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          color?: string
+          cards?: number
+          summaries?: number
+          progress?: number
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          color?: string
+          cards?: number
+          summaries?: number
+          progress?: number
+          user_id?: string
+          created_at?: string
         }
         Relationships: []
       }
