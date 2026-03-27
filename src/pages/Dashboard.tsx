@@ -64,9 +64,9 @@ export default function Dashboard() {
   const { data: subjects = [] } = useQuery({
     queryKey: ['subjects', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('subjects').select('*').eq('user_id', user?.id || '');
+      const { data, error } = await supabase.from('subjects' as any).select('*').eq('user_id', user?.id || '');
       if (error) throw error;
-      return data;
+      return (data || []) as any[];
     },
     enabled: !!user,
   });
@@ -150,7 +150,7 @@ export default function Dashboard() {
   const activities = [
     ...generatedMaterials.slice(0, 5).map((m) => ({
        action: `Gerou ${m.type === 'summary' ? 'resumo' : m.type}: ${(m.title.split('-')[1]?.trim().slice(0, 20)) || 'Novo material'}`,
-       subject: m.subject || "Geral",
+       subject: (m as any).subject || "Geral",
        time: formatDistanceToNow(new Date(m.created_at), { addSuffix: true, locale: ptBR }),
        date: new Date(m.created_at)
     })),

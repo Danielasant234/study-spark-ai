@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, lazy, Suspense } from "react";
 import { FileText, Layers, PenTool, Network, Loader2, Copy, Check, Upload, Download, Mic, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -12,19 +12,21 @@ import { extractTextFromPDF } from "@/lib/pdf-parser";
 import { extractTextFromDocx, extractTextFromPptx } from "@/lib/doc-parser";
 import { splitAudioRobustly } from "@/lib/audio-processor";
 import { useQuery } from "@tanstack/react-query";
+import type { MindMapData } from "@/components/MindMap";
+
+const MindMap = lazy(() => import("@/components/MindMap"));
 
 const materialTypes = [
   { id: "summary", label: "Resumo", icon: FileText, description: "Resumo estruturado com conceitos-chave" },
   { id: "flashcards", label: "Flashcards", icon: Layers, description: "Perguntas e respostas para revisão" },
   { id: "exercises", label: "Exercícios", icon: PenTool, description: "Exercícios variados com gabarito" },
-  { id: "mindmap", label: "Mapa Mental", icon: Network, description: "Organização hierárquica de conceitos" },
+  { id: "mindmap", label: "Mapa Mental", icon: Network, description: "Visualização interativa de conceitos" },
 ];
-
-const MAX_CHUNK_SIZE = 5 * 1024 * 1024;
 
 export default function GeneratePage() {
   const { user } = useAuth();
-  const parseAndSaveFlashcards = async (raw: string, sourceContent: string) => {
+
+  const parseAndSaveFlashcards = async (raw: string) => {
     let cards: { front: string; back: string }[] = [];
     try {
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
@@ -71,6 +73,7 @@ export default function GeneratePage() {
   const [selectedType, setSelectedType] = useState("summary");
   const [selectedSubject, setSelectedSubject] = useState("Geral");
   const [result, setResult] = useState("");
+  const [mindMapData, setMindMapData] = useState<MindMapData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isReadingPdf, setIsReadingPdf] = useState(false);
@@ -90,6 +93,21 @@ export default function GeneratePage() {
   const formRef = useReveal();
   const resultRef = useRef<HTMLDivElement>(null);
 
+  const parseMindMapJson = (raw: string): MindMapData | null => {
+    try {
+      // Try to extract JSON from possible markdown code blocks
+      const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || raw.match(/(\{[\s\S]*\})/);
+      if (!jsonMatch) return null;
+      const parsed = JSON.parse(jsonMatch[1].trim());
+      if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
+        return parsed as MindMapData;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleGenerate = async () => {
     if (!content.trim()) {
       toast({ title: "Conteúdo vazio", description: "Cole ou digite o conteúdo para gerar o material.", variant: "destructive" });
@@ -97,9 +115,23 @@ export default function GeneratePage() {
     }
     setIsLoading(true);
     setResult("");
+    setMindMapData(null);
     try {
       const res = await generateMaterial(content, selectedType);
-      setResult(res);
+      
+      if (selectedType === "mindmap") {
+        const mapData = parseMindMapJson(res);
+        if (mapData) {
+          setMindMapData(mapData);
+          setResult(res);
+        } else {
+          // Fallback to markdown rendering
+          setResult(res);
+        }
+      } else {
+        setResult(res);
+      }
+
       const typeLabel = materialTypes.find((t) => t.id === selectedType)?.label || selectedType;
       await supabase.from("generated_materials").insert({
         title: `${typeLabel} - ${content.slice(0, 50)}...`,
@@ -110,7 +142,7 @@ export default function GeneratePage() {
         subject: selectedSubject,
       });
       if (selectedType === "flashcards") {
-        await parseAndSaveFlashcards(res, content);
+        await parseAndSaveFlashcards(res);
       }
       toast({ title: "Material gerado!", description: "Seu material de estudo está pronto e foi salvo." });
     } catch (e: any) {
@@ -171,8 +203,7 @@ export default function GeneratePage() {
       setContent(text);
       toast({ title: "PDF carregado e lido!", description: "O texto foi extraído com sucesso." });
     } catch (e: any) {
-      console.error(e);
-      toast({ title: "Erro na leitura do PDF", description: e.message || "Verifique se o PDF está corrompido ou protegido.", variant: "destructive" });
+      toast({ title: "Erro na leitura do PDF", description: e.message, variant: "destructive" });
     } finally {
       setIsReadingPdf(false);
       setTranscriptionProgress("");
@@ -186,14 +217,13 @@ export default function GeneratePage() {
     try {
       const text = type === 'docx' ? await extractTextFromDocx(file) : await extractTextFromPptx(file);
       if (!text.trim()) {
-        toast({ title: `${label} vazio ou ilegível`, description: `Não foi possível extrair texto deste arquivo.`, variant: "destructive" });
+        toast({ title: `${label} vazio ou ilegível`, variant: "destructive" });
         return;
       }
       setContent(text);
-      toast({ title: `${label} carregado!`, description: "O conteúdo foi extraído com sucesso." });
+      toast({ title: `${label} carregado!` });
     } catch (e: any) {
-      console.error(e);
-      toast({ title: `Erro na leitura do ${label}`, description: e.message || "Verifique se o arquivo está corrompido.", variant: "destructive" });
+      toast({ title: `Erro na leitura do ${label}`, description: e.message, variant: "destructive" });
     } finally {
       setIsReadingPdf(false);
       setTranscriptionProgress("");
@@ -223,41 +253,26 @@ export default function GeneratePage() {
   const handleAudioTranscription = async (file: File) => {
     setIsTranscribing(true);
     setTranscriptionProgress("Preparando áudio...");
-
     try {
       const chunks = await splitAudioRobustly(file, 300, 3, (msg) => setTranscriptionProgress(msg));
       const totalChunks = chunks.length;
-
-      if (totalChunks === 0) {
-        throw new Error("Áudio inválido ou vazio.");
-      }
+      if (totalChunks === 0) throw new Error("Áudio inválido ou vazio.");
 
       if (totalChunks === 1) {
-        // Envio direto
         setTranscriptionProgress("Transcrevendo áudio...");
         const transcription = await sendAudioChunk(chunks[0].blob, "audio/wav");
         setContent(transcription);
-        toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo de conteúdo." });
+        toast({ title: "Áudio transcrito!" });
       } else {
-        toast({ title: "Áudio longo detectado", description: `Dividido em ${totalChunks} partes otimizadas.` });
-        
+        toast({ title: "Áudio longo detectado", description: `Dividido em ${totalChunks} partes.` });
         let fullTranscription = "";
-
         for (const chunk of chunks) {
           setTranscriptionProgress(`Transcrevendo parte ${chunk.index + 1} de ${totalChunks}...`);
-          
-          const chunkTranscription = await sendAudioChunk(
-            chunk.blob, 
-            "audio/wav", 
-            chunk.index, 
-            totalChunks
-          );
-          
+          const chunkTranscription = await sendAudioChunk(chunk.blob, "audio/wav", chunk.index, totalChunks);
           fullTranscription += (fullTranscription ? "\n\n" : "") + chunkTranscription;
           setContent(fullTranscription);
         }
-
-        toast({ title: "Áudio transcrito!", description: `${totalChunks} partes processadas com sucesso.` });
+        toast({ title: "Áudio transcrito!", description: `${totalChunks} partes processadas.` });
       }
     } catch (e: any) {
       toast({ title: "Erro na transcrição", description: e.message, variant: "destructive" });
@@ -288,16 +303,11 @@ export default function GeneratePage() {
             ))}
           </select>
         </div>
-        <div className="hidden sm:block h-10 w-px bg-border mx-2" />
-        <p className="text-xs text-muted-foreground italic max-w-[200px]">
-          Selecione a matéria para organizar automaticamente o conteúdo gerado.
-        </p>
       </div>
 
       <div ref={formRef} className="reveal grid gap-6 lg:grid-cols-2" style={{ transitionDelay: "100ms" }}>
         {/* Input side */}
         <div className="space-y-4">
-          {/* Type selector */}
           <div className="grid grid-cols-2 gap-2">
             {materialTypes.map((type) => (
               <button
@@ -319,7 +329,6 @@ export default function GeneratePage() {
             ))}
           </div>
 
-          {/* Content input */}
           <div className="relative">
             <textarea
               value={content}
@@ -381,14 +390,20 @@ export default function GeneratePage() {
                   {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied ? "Copiado!" : "Copiar"}
                 </button>
-                <button onClick={handleDownloadPdf} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-                  <Download className="h-3.5 w-3.5" />PDF
-                </button>
+                {selectedType !== "mindmap" && (
+                  <button onClick={handleDownloadPdf} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                    <Download className="h-3.5 w-3.5" />PDF
+                  </button>
+                )}
               </div>
             )}
           </div>
-          <div className="max-h-[400px] sm:max-h-[500px] overflow-y-auto p-4">
-            {result ? (
+          <div className="max-h-[500px] sm:max-h-[600px] overflow-y-auto p-4">
+            {mindMapData && selectedType === "mindmap" ? (
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}>
+                <MindMap data={mindMapData} />
+              </Suspense>
+            ) : result ? (
               <div ref={resultRef} className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-code:text-primary">
                 <ReactMarkdown>{result}</ReactMarkdown>
               </div>

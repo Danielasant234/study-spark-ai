@@ -14,16 +14,54 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Validate input
+    if (!content || typeof content !== "string" || content.trim().length < 10) {
+      return new Response(JSON.stringify({ error: "Conteúdo muito curto ou inválido" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const validTypes = ["summary", "flashcards", "exercises", "mindmap"];
+    const safeType = validTypes.includes(type) ? type : "summary";
+
     const prompts: Record<string, string> = {
       summary: `Crie um resumo estruturado e detalhado do seguinte conteúdo. Formate a resposta em Markdown. Use títulos (##), subtítulos (###), listas ordenadas e marcadores (bullet points). Destaque conceitos-chave e termos importantes em **negrito**. O resumo deve ser visualmente limpo, organizado para leitura rápida e conciso.\n\nConteúdo:\n${content}`,
-      flashcards: `Gere flashcards (pergunta e resposta) sobre o conteúdo. Siga EXATAMENTE a quantidade de flashcards e os critérios solicitados pelo usuário no próprio conteúdo. Formate a resposta EXCLUSIVAMENTE em Markdown estruturado, seguindo estritamente este padrão visual exato para CADA flashcard:\n\n**Pergunta:** [Sua pergunta aqui]\n**Resposta:** [Sua resposta aqui]\n\n---\n\nNão numere as perguntas. Use exatamente "**Pergunta:**" e "**Resposta:**".\n\nConteúdo:\n${content}`,
+      flashcards: `Gere flashcards (pergunta e resposta) sobre o conteúdo. Formate a resposta EXCLUSIVAMENTE em Markdown estruturado, seguindo estritamente este padrão visual exato para CADA flashcard:\n\n**Pergunta:** [Sua pergunta aqui]\n**Resposta:** [Sua resposta aqui]\n\n---\n\nNão numere as perguntas. Use exatamente "**Pergunta:**" e "**Resposta:**".\n\nConteúdo:\n${content}`,
       exercises: `Gere 10 exercícios variados (múltipla escolha, verdadeiro/falso e dissertativas) a partir do seguinte conteúdo. Use formatação Markdown. Apresente primeiro APENAS as questões. Para questões de múltipla escolha, use formato de lista (A), B), C), etc). No final, crie uma seção delimitada por "## Gabarito e Explicações" com as respostas corretas e explicações detalhadas.\n\nConteúdo:\n${content}`,
-      mindmap: `Crie um mapa mental em formato textual hierárquico do seguinte conteúdo. Use markdown de listas aninhadas (usando -, *, ou + e recuos corretos) para representar visualmente a árvore de conceitos, partindo do tema central para os sub-tópicos. Destaque os nós principais em **negrito** e apresente o resultado como uma lista interligada clara.\n\nConteúdo:\n${content}`,
+      mindmap: `Analise o seguinte conteúdo e gere um mapa mental em formato JSON estruturado.
+
+RESPONDA EXCLUSIVAMENTE com JSON válido, sem markdown, sem explicações, sem texto antes ou depois.
+
+O JSON deve ter exatamente este formato:
+{
+  "nodes": [
+    {"id": "1", "label": "Tema Central", "level": 0},
+    {"id": "2", "label": "Subtema 1", "level": 1},
+    {"id": "3", "label": "Conceito 1.1", "level": 2}
+  ],
+  "edges": [
+    {"source": "1", "target": "2"},
+    {"source": "2", "target": "3"}
+  ]
+}
+
+Regras:
+- O nó com level 0 é o tema central (apenas 1)
+- level 1 são os tópicos principais (3-6 nós)
+- level 2 são subtópicos (2-4 por tópico principal)
+- level 3 são detalhes (opcional, 1-3 por subtópico)
+- Cada nó deve ter id único (string numérica)
+- Cada edge conecta um nó pai a um nó filho
+- Labels devem ser concisos (máx 5 palavras)
+
+Conteúdo:\n${content}`,
     };
 
-    const systemPrompt = `Você é um assistente educacional especializado em criar materiais de estudo de alta qualidade. Responda sempre em português brasileiro com formatação markdown clara, rica e visualmente bem organizada para que seja exibida perfeitamente em uma interface web.`;
+    const systemPrompt = safeType === "mindmap"
+      ? "Você é um assistente especializado em análise de conteúdo e estruturação de conhecimento. Responda APENAS com JSON válido, sem markdown."
+      : "Você é um assistente educacional especializado em criar materiais de estudo de alta qualidade. Responda sempre em português brasileiro com formatação markdown clara, rica e visualmente bem organizada.";
 
-    const userPrompt = prompts[type] || prompts.summary;
+    const userPrompt = prompts[safeType];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
