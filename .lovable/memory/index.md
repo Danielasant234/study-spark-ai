@@ -13,4 +13,6 @@ All tables have user_id with RLS scoped to auth.uid()
 - Mind maps: React Flow + dagre for visualization, JSON format from AI
 - Security: DOMPurify sanitization, Zod validation schemas in src/lib/sanitize.ts
 - generated_materials has subject column (text, default 'Geral')
-- subjects table: id, name, color, user_id (uses 'as any' cast since not in auto-generated types)
+- subjects table: id, name, color, user_id (properly typed in auto-generated types)
+- Dashboard AI tip: uses local tips array (not streaming chat endpoint)
+- Trigger on_auth_user_created exists for auto-creating profiles

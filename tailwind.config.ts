@@ -106,6 +106,10 @@ export default {
           "50%": { transform: "translateX(4px)" },
           "100%": { transform: "translateX(-4px)" },
         },
+        "pulse-gentle": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.6" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -113,6 +117,7 @@ export default {
         "fade-in-up": "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "scale-in": "scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "sail": "sail 3s ease-in-out infinite",
+        "pulse-gentle": "pulse-gentle 2s ease-in-out infinite",
       },
     },
   },
