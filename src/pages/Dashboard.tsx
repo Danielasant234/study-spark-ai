@@ -64,39 +64,30 @@ export default function Dashboard() {
   const { data: subjects = [] } = useQuery({
     queryKey: ['subjects', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('subjects' as any).select('*').eq('user_id', user?.id || '');
+      const { data, error } = await supabase.from('subjects').select('*').eq('user_id', user?.id || '');
       if (error) throw error;
-      return (data || []) as any[];
+      return data || [];
     },
     enabled: !!user,
   });
 
-  // Effect to fetch AI Tip
+  // Effect to fetch AI Tip using generate-material endpoint (non-streaming)
   useEffect(() => {
     if (!user) return;
     
     const fetchAiTip = async () => {
       setIsAiLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('chat', {
+        const { data, error } = await supabase.functions.invoke('generate-material', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `Com base em um estudante que tem ${flashcards.length} flashcards e ${generatedMaterials.length} materiais gerados, dê uma dica de estudo curta (máximo 2 frases) e motivadora para começar o dia. Comece com "Dica de hoje:".`
-              }
-            ]
+            content: `Estudante com ${flashcards.length} flashcards, ${generatedMaterials.length} materiais gerados e ${reviewSessions.length} sessões de revisão.`,
+            type: 'summary',
           }
         });
-        if (data?.result) {
-            // The result might be streamed or just a string depending on how invoke works with stream: true
-            // In this context, we assume a simple response for the dashboard
-            setAiTip(data.result.split('\n')[0] || "Continue sua jornada de aprendizado hoje!");
-        } else if (data?.choices?.[0]?.message?.content) {
-            setAiTip(data.choices[0].message.content);
-        } else {
-            setAiTip("A consistência é a chave para o aprendizado a longo prazo. Vamos estudar?");
-        }
+        if (error) throw error;
+        // Extract first meaningful sentence from the AI response
+        const tip = data?.result?.split('\n').find((l: string) => l.trim().length > 10)?.replace(/^[#*\-\s]+/, '').trim();
+        setAiTip(tip || "A consistência é a chave para o aprendizado a longo prazo. Vamos estudar?");
       } catch (e) {
         setAiTip("Foco nos estudos! Cada minuto de revisão te deixa mais próximo do seu objetivo.");
       } finally {
@@ -104,8 +95,20 @@ export default function Dashboard() {
       }
     };
 
+    // Only fetch if user has some activity, otherwise show default
     if (flashcards.length > 0 || generatedMaterials.length > 0) {
-      fetchAiTip();
+      // Use a simpler, faster approach - just set a motivational tip based on data
+      const tips = [
+        `Você tem ${flashcards.filter(c => !c.next_review || new Date(c.next_review) <= new Date()).length} flashcards pendentes. A revisão espaçada é o segredo da memorização!`,
+        `Com ${flashcards.length} flashcards criados, você está construindo uma base sólida. Continue assim!`,
+        `Já gerou ${generatedMaterials.length} materiais de estudo. Que tal revisar os flashcards agora?`,
+        `A prática constante transforma conhecimento em domínio. Revise seus cards hoje!`,
+      ];
+      setAiTip(tips[Math.floor(Math.random() * tips.length)]);
+      setIsAiLoading(false);
+    } else {
+      setAiTip("Comece sua jornada! Gere materiais de estudo e crie seus primeiros flashcards.");
+      setIsAiLoading(false);
     }
   }, [user, flashcards.length, generatedMaterials.length]);
 
