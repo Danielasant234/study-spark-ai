@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   RotateCcw, ChevronLeft, ChevronRight, Check, X, Shuffle, Play,
   BarChart3, Brain, Zap, Target, Clock, Filter, Layers, ArrowLeft,
-  Trophy, Flame, TrendingUp,
+  Trophy, Flame, TrendingUp, Trash2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -437,6 +437,26 @@ export default function Flashcards() {
           </div>
         ) : (
           <>
+            {/* Delete options */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={async () => {
+                  const cards = subjectFilter === 'all' ? allCards : allCards.filter(c => c.subject === subjectFilter);
+                  if (cards.length === 0) return;
+                  const label = subjectFilter === 'all' ? 'todos os flashcards' : `flashcards de "${subjectFilter}"`;
+                  if (!confirm(`Deseja excluir ${label}? (${cards.length} cards)`)) return;
+                  const ids = cards.map(c => c.id);
+                  const { error } = await supabase.from('flashcards').delete().in('id', ids);
+                  if (error) toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+                  else { toast({ title: `${cards.length} flashcards excluídos` }); loadCards(); }
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-95"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Excluir {subjectFilter === 'all' ? 'Todos' : `"${subjectFilter}"`}
+              </button>
+            </div>
+
             {dueCards.length > 0 && (
               <button onClick={() => startStudy('due')}
                 className="w-full flex items-center gap-3 sm:gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-left transition-all hover:bg-primary/10 active:scale-[0.99]">
