@@ -57,6 +57,8 @@ export default function Summaries() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Also delete linked flashcards
+      await supabase.from("flashcards").delete().eq("source_material_id", id);
       const { error } = await supabase.from("generated_materials").delete().eq("id", id);
       if (error) throw error;
     },
