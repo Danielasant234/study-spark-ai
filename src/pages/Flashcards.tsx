@@ -420,15 +420,8 @@ export default function Flashcards() {
             <button onClick={() => setSubjectFilter('all')}
               className={cn('rounded-lg px-3 py-2 text-sm font-medium transition-all active:scale-95',
                 subjectFilter === 'all' ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-card text-muted-foreground hover:bg-secondary')}>
-              Todas
+              Todas as matérias
             </button>
-            {subjects.map(s => (
-              <button key={s} onClick={() => setSubjectFilter(s)}
-                className={cn('rounded-lg px-3 py-2 text-sm font-medium transition-all active:scale-95',
-                  subjectFilter === s ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-card text-muted-foreground hover:bg-secondary')}>
-                {s}
-              </button>
-            ))}
           </div>
         )}
 
