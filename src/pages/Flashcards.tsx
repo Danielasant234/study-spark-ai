@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   RotateCcw, ChevronLeft, ChevronRight, Check, X, Shuffle, Play,
   BarChart3, Brain, Zap, Target, Clock, Filter, Layers, ArrowLeft,
-  Trophy, Flame, TrendingUp, Trash2,
+  Trophy, Flame, TrendingUp, Trash2, BookOpen,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -10,6 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { calculateSM2, isDueForReview, getMasteryLevel, MASTERY_COLORS, MASTERY_LABELS } from "@/lib/sm2";
 import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Flashcard {
   id: string;
