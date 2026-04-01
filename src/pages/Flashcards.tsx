@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   RotateCcw, ChevronLeft, ChevronRight, Check, X, Shuffle, Play,
   BarChart3, Brain, Zap, Target, Clock, Filter, Layers, ArrowLeft,
-  Trophy, Flame, TrendingUp, Trash2,
+  Trophy, Flame, TrendingUp, Trash2, BookOpen,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -10,6 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { calculateSM2, isDueForReview, getMasteryLevel, MASTERY_COLORS, MASTERY_LABELS } from "@/lib/sm2";
 import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Flashcard {
   id: string;
@@ -60,6 +64,7 @@ export default function Flashcards() {
   const [sessionComplete, setSessionComplete] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const loadCards = useCallback(async () => {
     setLoading(true);
@@ -415,15 +420,8 @@ export default function Flashcards() {
             <button onClick={() => setSubjectFilter('all')}
               className={cn('rounded-lg px-3 py-2 text-sm font-medium transition-all active:scale-95',
                 subjectFilter === 'all' ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-card text-muted-foreground hover:bg-secondary')}>
-              Todas
+              Todas as matérias
             </button>
-            {subjects.map(s => (
-              <button key={s} onClick={() => setSubjectFilter(s)}
-                className={cn('rounded-lg px-3 py-2 text-sm font-medium transition-all active:scale-95',
-                  subjectFilter === s ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-card text-muted-foreground hover:bg-secondary')}>
-                {s}
-              </button>
-            ))}
           </div>
         )}
 
@@ -437,25 +435,88 @@ export default function Flashcards() {
           </div>
         ) : (
           <>
-            {/* Delete options */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={async () => {
-                  const cards = subjectFilter === 'all' ? allCards : allCards.filter(c => c.subject === subjectFilter);
-                  if (cards.length === 0) return;
-                  const label = subjectFilter === 'all' ? 'todos os flashcards' : `flashcards de "${subjectFilter}"`;
-                  if (!confirm(`Deseja excluir ${label}? (${cards.length} cards)`)) return;
-                  const ids = cards.map(c => c.id);
-                  const { error } = await supabase.from('flashcards').delete().in('id', ids);
-                  if (error) toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
-                  else { toast({ title: `${cards.length} flashcards excluídos` }); loadCards(); }
-                }}
-                className="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-95"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Excluir {subjectFilter === 'all' ? 'Todos' : `"${subjectFilter}"`}
-              </button>
-            </div>
+            {/* Subject cards with theme info */}
+            {subjects.length > 0 && (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" /> Matérias
+                </h3>
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+                  {subjects.map(s => {
+                    const sCards = allCards.filter(c => c.subject === s);
+                    const themes = Array.from(new Set(sCards.map(c => c.theme).filter(Boolean)));
+                    const sDue = sCards.filter(c => isDueForReview(c.next_review)).length;
+                    const isActive = subjectFilter === s;
+                    return (
+                      <button key={s} onClick={() => setSubjectFilter(isActive ? 'all' : s)}
+                        className={cn(
+                          'flex flex-col gap-1 rounded-xl border p-3 text-left transition-all active:scale-[0.98]',
+                          isActive 
+                            ? 'border-primary/30 bg-primary/5 shadow-sm' 
+                            : 'border-border bg-card hover:border-primary/20 hover:shadow-sm'
+                        )}>
+                        <div className="flex items-center justify-between">
+                          <span className={cn('text-sm font-semibold truncate', isActive ? 'text-primary' : 'text-foreground')}>{s}</span>
+                          <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">{sCards.length}</span>
+                        </div>
+                        {themes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {themes.slice(0, 3).map(t => (
+                              <span key={t} className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">{t}</span>
+                            ))}
+                            {themes.length > 3 && (
+                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">+{themes.length - 3}</span>
+                            )}
+                          </div>
+                        )}
+                        {sDue > 0 && (
+                          <span className="text-[11px] text-primary font-medium mt-0.5">{sDue} para revisar</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Delete button */}
+            <button
+              onClick={() => setDeleteDialogOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-95"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir {subjectFilter === 'all' ? 'Todos' : `"${subjectFilter}"`}
+            </button>
+
+            {/* Delete confirmation dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir flashcards</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {subjectFilter === 'all'
+                      ? `Tem certeza que deseja excluir todos os ${allCards.length} flashcards? Esta ação não pode ser desfeita.`
+                      : `Tem certeza que deseja excluir os ${filteredCards.length} flashcards de "${subjectFilter}"? Esta ação não pode ser desfeita.`}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const cards = subjectFilter === 'all' ? allCards : allCards.filter(c => c.subject === subjectFilter);
+                      if (cards.length === 0) return;
+                      const ids = cards.map(c => c.id);
+                      const { error } = await supabase.from('flashcards').delete().in('id', ids);
+                      if (error) toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+                      else { toast({ title: `${cards.length} flashcards excluídos` }); loadCards(); }
+                    }}
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {dueCards.length > 0 && (
               <button onClick={() => startStudy('due')}
