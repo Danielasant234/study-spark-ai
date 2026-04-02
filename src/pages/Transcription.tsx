@@ -50,7 +50,7 @@ export default function TranscriptionPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  const sendChunk = async (chunk: Blob, mimeType: string, idx?: number, total?: number): Promise<string> => {
+  const sendChunk = async (chunk: Blob, mimeType: string, idx?: number, total?: number, retries = 2): Promise<string> => {
     const fd = new FormData();
     fd.append("audio", new File([chunk], `chunk.mp3`, { type: mimeType }));
     if (idx !== undefined && total !== undefined) {
@@ -64,6 +64,11 @@ export default function TranscriptionPage() {
     });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
+      // Retry on server errors (5xx) or memory limits
+      if (retries > 0 && resp.status >= 500) {
+        await new Promise(r => setTimeout(r, 2000));
+        return sendChunk(chunk, mimeType, idx, total, retries - 1);
+      }
       throw new Error(err.error || `Erro (${resp.status})`);
     }
     return (await resp.json()).transcription;
