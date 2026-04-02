@@ -87,7 +87,7 @@ export default function TranscriptionPage() {
     
     try {
       setProgressLabel("Preparando áudio...");
-      const chunks = await splitAudioRobustly(file, 300, 3, (msg) => {
+      const chunks = await splitAudioRobustly(file, 180, 3, (msg) => {
         setProgressLabel(msg);
         setProgress(10); // Mantém progresso fixo em 10% durante preparação local
       });
