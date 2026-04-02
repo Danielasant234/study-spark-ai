@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,39 +23,41 @@ serve(async (req) => {
       });
     }
 
-    // Check if this is a chunk or full file
     const chunkIndex = formData.get("chunkIndex");
     const totalChunks = formData.get("totalChunks");
     const isChunked = chunkIndex !== null && totalChunks !== null;
 
-    // Use efficient base64 encoding (no string concatenation)
+    // Memory-efficient base64 encoding using Deno std library
     const arrayBuffer = await audioFile.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-    let binary = "";
-    for (let i = 0; i < uint8.length; i++) {
-      binary += String.fromCharCode(uint8[i]);
-    }
-    const base64Audio = btoa(binary);
+    const base64Audio = base64Encode(new Uint8Array(arrayBuffer));
 
     const mimeType = audioFile.type || "audio/mpeg";
-
     const isLastChunk = isChunked && Number(chunkIndex) === Number(totalChunks) - 1;
 
+    const noiseInstructions = `
+IMPORTANTE - ÁUDIO COM RUÍDO:
+- Se o áudio tiver ruído de fundo, eco, sobreposição de vozes ou baixa qualidade, faça o melhor esforço para transcrever.
+- Marque trechos inaudíveis com [inaudível] e trechos incertos com [?].
+- NUNCA retorne vazio ou erro por causa de ruído. Sempre tente transcrever o que for possível.
+- Se houver música de fundo, ignore-a e foque na fala.`;
+
     const systemPrompt = isChunked && !isLastChunk
-      ? `Você é um transcritor profissional especializado em reedição textual. Transcreva o áudio com extrema precisão em português brasileiro.
+      ? `Você é um transcritor profissional especializado em reedição textual. Transcreva o áudio com a maior precisão possível em português brasileiro.
 Este é o trecho ${Number(chunkIndex) + 1} de ${totalChunks} de um áudio contínuo.
 1. Transcreva APENAS o conteúdo deste trecho.
 2. Organize cuidadosamente o texto em parágrafos bem estruturados.
 3. Corrija a pontuação e a gramática para melhorar a legibilidade, garantindo que o significado e a fluidez originais NÃO sejam alterados.
 4. Caso haja múltiplos falantes, sinalize como "Falante 1:", "Falante 2:", etc.
-5. Em hipótese alguma insira sumários, considerações finais ou formatações extras ao final deste trecho (apenas a transcrição contínua).`
-      : `Você é um transcritor profissional especializado em reedição textual. Transcreva o áudio com extrema precisão em português brasileiro.
-${isChunked ? `Este é o ÚLTIMO trecho (${Number(chunkIndex) + 1} de ${totalChunks}) rotineiramente transcrito de um áudio contínuo.` : `Transcreva este arquivo de áudio completamente.`}
+5. Em hipótese alguma insira sumários, considerações finais ou formatações extras ao final deste trecho.
+${noiseInstructions}`
+      : `Você é um transcritor profissional especializado em reedição textual. Transcreva o áudio com a maior precisão possível em português brasileiro.
+${isChunked ? `Este é o ÚLTIMO trecho (${Number(chunkIndex) + 1} de ${totalChunks}) de um áudio contínuo.` : `Transcreva este arquivo de áudio completamente.`}
 1. Organize cuidadosamente o texto em parágrafos bem estruturados.
 2. Corrija a pontuação e a gramática para melhorar a legibilidade, garantindo que o significado original NÃO seja alterado.
 3. Caso haja múltiplos falantes, sinalize como "Falante 1:", "Falante 2:", etc.
 4. Ao final da transcrição, adicione uma seção obrigatória "## Tópicos Principais", destacando os temas centrais abordados.
-5. Liste em "## Resumo" uma rápida síntese do áudio e em "## Conceitos-chave" as palavras mais densas abordadas.`;
+5. Liste em "## Resumo" uma rápida síntese do áudio e em "## Conceitos-chave" as palavras mais densas abordadas.
+${noiseInstructions}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -80,8 +82,8 @@ ${isChunked ? `Este é o ÚLTIMO trecho (${Number(chunkIndex) + 1} de ${totalChu
               {
                 type: "text",
                 text: isChunked
-                  ? `Transcreva este trecho ${Number(chunkIndex) + 1} de ${totalChunks} do áudio.`
-                  : "Transcreva este áudio de forma completa e organizada.",
+                  ? `Transcreva este trecho ${Number(chunkIndex) + 1} de ${totalChunks} do áudio. Se houver ruído, transcreva o que for possível.`
+                  : "Transcreva este áudio de forma completa e organizada. Se houver ruído, transcreva o que for possível.",
               },
             ],
           },
@@ -92,21 +94,18 @@ ${isChunked ? `Este é o ÚLTIMO trecho (${Number(chunkIndex) + 1} de ${totalChu
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "Créditos insuficientes." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const t = await response.text();
       console.error("AI error:", response.status, t);
       return new Response(JSON.stringify({ error: "Erro ao transcrever áudio" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
