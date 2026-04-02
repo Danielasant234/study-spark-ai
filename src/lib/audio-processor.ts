@@ -43,7 +43,7 @@ function estimateDuration(file: File): Promise<number> {
  */
 export async function splitAudioRobustly(
   file: File,
-  chunkDurationSeconds: number = 300, // default 5 mins
+  chunkDurationSeconds: number = 180, // default 3 mins for smaller chunks
   _overlapSeconds: number = 3,
   onProgress?: (msg: string) => void
 ): Promise<AudioChunk[]> {
