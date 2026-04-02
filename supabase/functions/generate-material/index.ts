@@ -28,7 +28,7 @@ serve(async (req) => {
       summary: `Crie um resumo estruturado e detalhado do seguinte conteúdo. Formate a resposta em Markdown. Use títulos (##), subtítulos (###), listas ordenadas e marcadores (bullet points). Destaque conceitos-chave e termos importantes em **negrito**. O resumo deve ser visualmente limpo, organizado para leitura rápida e conciso.\n\nConteúdo:\n${content}`,
       flashcards: `Gere flashcards (pergunta e resposta) sobre o conteúdo. Formate a resposta EXCLUSIVAMENTE em Markdown estruturado, seguindo estritamente este padrão visual exato para CADA flashcard:\n\n**Pergunta:** [Sua pergunta aqui]\n**Resposta:** [Sua resposta aqui]\n\n---\n\nNão numere as perguntas. Use exatamente "**Pergunta:**" e "**Resposta:**".\n\nConteúdo:\n${content}`,
       exercises: `Gere 10 exercícios variados (múltipla escolha, verdadeiro/falso e dissertativas) a partir do seguinte conteúdo. Use formatação Markdown. Apresente primeiro APENAS as questões. Para questões de múltipla escolha, use formato de lista (A), B), C), etc). No final, crie uma seção delimitada por "## Gabarito e Explicações" com as respostas corretas e explicações detalhadas.\n\nConteúdo:\n${content}`,
-      mindmap: `Analise o seguinte conteúdo e gere um mapa mental em formato JSON estruturado.
+      mindmap: `Analise o seguinte conteúdo e gere um mapa mental RICO e DETALHADO em formato JSON estruturado.
 
 RESPONDA EXCLUSIVAMENTE com JSON válido, sem markdown, sem explicações, sem texto antes ou depois.
 
@@ -37,22 +37,26 @@ O JSON deve ter exatamente este formato:
   "nodes": [
     {"id": "1", "label": "Tema Central", "level": 0},
     {"id": "2", "label": "Subtema 1", "level": 1},
-    {"id": "3", "label": "Conceito 1.1", "level": 2}
+    {"id": "3", "label": "Conceito 1.1", "level": 2},
+    {"id": "4", "label": "Detalhe 1.1.1", "level": 3}
   ],
   "edges": [
     {"source": "1", "target": "2"},
-    {"source": "2", "target": "3"}
+    {"source": "2", "target": "3"},
+    {"source": "3", "target": "4"}
   ]
 }
 
 Regras:
 - O nó com level 0 é o tema central (apenas 1)
-- level 1 são os tópicos principais (3-6 nós)
-- level 2 são subtópicos (2-4 por tópico principal)
-- level 3 são detalhes (opcional, 1-3 por subtópico)
-- Cada nó deve ter id único (string numérica)
+- level 1 são os tópicos principais (4-7 nós) — quanto mais tópicos relevantes, melhor
+- level 2 são subtópicos (2-5 por tópico principal) — explore cada tópico em profundidade
+- level 3 são detalhes e exemplos (1-4 por subtópico) — inclua dados, datas, nomes ou conceitos-chave
+- Crie um mapa COMPLETO e ABRANGENTE que cubra TODO o conteúdo fornecido
+- Cada nó deve ter id único (string numérica sequencial)
 - Cada edge conecta um nó pai a um nó filho
-- Labels devem ser concisos (máx 5 palavras)
+- Labels devem ser concisos mas informativos (máx 6 palavras)
+- Gere pelo menos 20 nós no total para um mapa rico
 
 Conteúdo:\n${content}`,
     };
