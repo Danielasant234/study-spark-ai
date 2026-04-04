@@ -111,13 +111,23 @@ export default function Summaries() {
               {typeLabels[viewingMaterial.type] || viewingMaterial.type} · {viewingMaterial.subject || "Geral"} · {formatDate(viewingMaterial.created_at)}
             </p>
           </div>
-          <button
-            onClick={() => handleDownloadPdf(viewingMaterial)}
-            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all self-start"
-          >
-            <Download className="h-4 w-4" />
-            Download PDF
-          </button>
+          {viewingMaterial.type === "mindmap" ? (
+            <button
+              onClick={() => mindMapRef.current?.exportPng()}
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all self-start"
+            >
+              <Image className="h-4 w-4" />
+              Download PNG
+            </button>
+          ) : (
+            <button
+              onClick={() => handleDownloadPdf(viewingMaterial)}
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all self-start"
+            >
+              <Download className="h-4 w-4" />
+              Download PDF
+            </button>
+          )}
         </div>
         {viewingMaterial.type === "mindmap" ? (
           (() => {
