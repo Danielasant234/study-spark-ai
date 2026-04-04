@@ -136,7 +136,7 @@ export default function Summaries() {
               const jsonStr = raw.includes("```") ? raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim() : raw.trim();
               const parsed: MindMapData = JSON.parse(jsonStr);
               if (parsed.nodes && parsed.edges) {
-                return <MindMap data={parsed} />;
+                return <MindMap ref={mindMapRef} data={parsed} />;
               }
             } catch { /* fall through */ }
             return (
