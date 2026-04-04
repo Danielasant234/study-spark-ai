@@ -122,11 +122,16 @@ function CustomNode({ data }: NodeProps) {
 
 const nodeTypes = { custom: CustomNode };
 
+export interface MindMapHandle {
+  exportPng: () => Promise<void>;
+}
+
 interface MindMapProps {
   data: MindMapData;
 }
 
-export default function MindMap({ data }: MindMapProps) {
+const MindMap = forwardRef<MindMapHandle, MindMapProps>(function MindMap({ data }, ref) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [direction, setDirection] = useState<"TB" | "LR">("LR");
 
   const initialNodes: Node[] = useMemo(
