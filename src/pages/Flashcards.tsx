@@ -67,6 +67,7 @@ export default function Flashcards() {
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ subject: string; theme?: string | null; cards: Flashcard[] } | null>(null);
 
   const loadCards = useCallback(async () => {
     setLoading(true);
@@ -439,69 +440,111 @@ export default function Flashcards() {
           </div>
         ) : (
           <>
-            {/* Subject cards with theme grouping */}
+            {/* Subject cards with theme sections */}
             {subjects.length > 0 && (
-              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-primary" /> Matérias
                 </h3>
-                <div className="space-y-3">
-                  {subjects.map(s => {
-                    const sCards = allCards.filter(c => c.subject === s);
-                    const themes = Array.from(new Set(sCards.map(c => c.theme ?? 'Sem tema')));
-                    const sDue = sCards.filter(c => isDueForReview(c.next_review)).length;
-                    const isSubjectActive = subjectFilter === s && !themeFilter;
-                    return (
-                      <div key={s} className="rounded-xl border border-border overflow-hidden">
-                        <button onClick={() => { setSubjectFilter(isSubjectActive ? 'all' : s); setThemeFilter(null); }}
-                          className={cn(
-                            'flex w-full items-center justify-between p-3 text-left transition-all',
-                            isSubjectActive ? 'bg-primary/5 border-primary/20' : 'bg-card hover:bg-secondary/50'
-                          )}>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={cn('text-sm font-semibold truncate', isSubjectActive ? 'text-primary' : 'text-foreground')}>{s}</span>
-                            <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">{sCards.length}</span>
-                            {sDue > 0 && (
-                              <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{sDue} pendentes</span>
-                            )}
+                {subjects.map(s => {
+                  const sCards = allCards.filter(c => c.subject === s);
+                  const themes = Array.from(new Set(sCards.map(c => c.theme ?? 'Sem tema')));
+                  const sDue = sCards.filter(c => isDueForReview(c.next_review)).length;
+                  const isExpanded = subjectFilter === s || themeFilter?.subject === s;
+                  return (
+                    <div key={s} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                      <button onClick={() => {
+                        if (isExpanded && !themeFilter) { setSubjectFilter('all'); }
+                        else { setSubjectFilter(s); setThemeFilter(null); }
+                      }}
+                        className={cn(
+                          'flex w-full items-center justify-between p-4 text-left transition-all',
+                          isExpanded ? 'bg-primary/5' : 'hover:bg-secondary/50'
+                        )}>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                            <BookOpen className="h-4 w-4 text-primary" />
                           </div>
-                          <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', (isSubjectActive || themeFilter?.subject === s) && 'rotate-90')} />
-                        </button>
-                        {(isSubjectActive || themeFilter?.subject === s) && (
-                          <div className="border-t border-border bg-secondary/20 p-2 grid gap-1.5 grid-cols-1 sm:grid-cols-2">
-                            {themes.map(t => {
-                              const tCards = sCards.filter(c => (c.theme ?? 'Sem tema') === t);
-                              const tDue = tCards.filter(c => isDueForReview(c.next_review)).length;
-                              const isThemeActive = themeFilter?.subject === s && (themeFilter?.theme === (t === 'Sem tema' ? null : t));
-                              return (
-                                <button key={t} onClick={() => {
+                          <div className="min-w-0">
+                            <span className={cn('text-sm font-semibold truncate block', isExpanded ? 'text-primary' : 'text-foreground')}>{s}</span>
+                            <span className="text-[11px] text-muted-foreground">{sCards.length} cards{sDue > 0 ? ` · ${sDue} pendentes` : ''}</span>
+                          </div>
+                        </div>
+                        <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-90')} />
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t border-border">
+                          {themes.map((t, idx) => {
+                            const tCards = sCards.filter(c => (c.theme ?? 'Sem tema') === t);
+                            const tDue = tCards.filter(c => isDueForReview(c.next_review)).length;
+                            const themeValue = t === 'Sem tema' ? null : t;
+                            const isThemeActive = themeFilter?.subject === s && themeFilter?.theme === themeValue;
+                            const tMastery = tCards.reduce(
+                              (acc, c) => { acc[getMasteryLevel(c)]++; return acc; },
+                              { new: 0, learning: 0, reviewing: 0, mastered: 0 }
+                            );
+                            return (
+                              <div key={t} className={cn(
+                                'border-b border-border last:border-b-0',
+                                isThemeActive && 'bg-primary/5'
+                              )}>
+                                <button onClick={() => {
                                   if (isThemeActive) { setThemeFilter(null); setSubjectFilter(s); }
-                                  else { setThemeFilter({ subject: s, theme: t === 'Sem tema' ? null : t }); setSubjectFilter(s); }
+                                  else { setThemeFilter({ subject: s, theme: themeValue }); setSubjectFilter(s); }
                                 }}
-                                  className={cn(
-                                    'flex items-center justify-between rounded-lg px-3 py-2 text-left transition-all active:scale-[0.98]',
-                                    isThemeActive ? 'bg-primary/10 border border-primary/30' : 'bg-card border border-border hover:border-primary/20'
-                                  )}>
-                                  <div className="min-w-0 flex-1">
-                                    <p className={cn('text-xs font-medium truncate', isThemeActive ? 'text-primary' : 'text-foreground')}>{t}</p>
-                                    {tDue > 0 && <p className="text-[10px] text-primary mt-0.5">{tDue} para revisar</p>}
+                                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-all hover:bg-secondary/30 active:scale-[0.99]">
+                                  <div className={cn(
+                                    'h-2 w-2 rounded-full shrink-0',
+                                    isThemeActive ? 'bg-primary' : 'bg-muted-foreground/30'
+                                  )} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className={cn('text-sm font-medium truncate', isThemeActive ? 'text-primary' : 'text-foreground')}>{t}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-[11px] text-muted-foreground">{tCards.length} cards</span>
+                                      {tDue > 0 && <span className="text-[11px] text-primary font-medium">{tDue} para revisar</span>}
+                                    </div>
                                   </div>
-                                  <span className="shrink-0 ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{tCards.length}</span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {tMastery.mastered > 0 && <span className="rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">{tMastery.mastered}✓</span>}
+                                    {tMastery.learning > 0 && <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">{tMastery.learning}</span>}
+                                    {tMastery.new > 0 && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{tMastery.new}</span>}
+                                  </div>
                                 </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+
+                                {isThemeActive && (
+                                  <div className="px-4 pb-3 flex gap-2">
+                                    <button onClick={() => startStudy('all')}
+                                      className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-all active:scale-95">
+                                      <Play className="h-3 w-3" /> Estudar tema
+                                    </button>
+                                    <button onClick={() => {
+                                      setDeleteTarget({ subject: s, theme: themeValue, cards: tCards });
+                                      setDeleteDialogOpen(true);
+                                    }}
+                                      className="flex items-center gap-1.5 rounded-lg bg-destructive/5 border border-destructive/15 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-95">
+                                      <Trash2 className="h-3 w-3" /> Excluir tema
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {/* Delete button */}
+            {/* Delete button for all / subject */}
             <button
-              onClick={() => setDeleteDialogOpen(true)}
+              onClick={() => {
+                const cards = subjectFilter === 'all' ? allCards : allCards.filter(c => c.subject === subjectFilter);
+                setDeleteTarget({ subject: subjectFilter, theme: undefined, cards });
+                setDeleteDialogOpen(true);
+              }}
               className="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-95"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -514,9 +557,9 @@ export default function Flashcards() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Excluir flashcards</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {subjectFilter === 'all'
-                      ? `Tem certeza que deseja excluir todos os ${allCards.length} flashcards? Esta ação não pode ser desfeita.`
-                      : `Tem certeza que deseja excluir os ${filteredCards.length} flashcards de "${subjectFilter}"? Esta ação não pode ser desfeita.`}
+                    {deleteTarget
+                      ? `Tem certeza que deseja excluir ${deleteTarget.cards.length} flashcards${deleteTarget.theme !== undefined ? ` do tema "${deleteTarget.theme ?? 'Sem tema'}"` : deleteTarget.subject !== 'all' ? ` de "${deleteTarget.subject}"` : ''}? Esta ação não pode ser desfeita.`
+                      : 'Esta ação não pode ser desfeita.'}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -524,12 +567,12 @@ export default function Flashcards() {
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={async () => {
-                      const cards = subjectFilter === 'all' ? allCards : allCards.filter(c => c.subject === subjectFilter);
-                      if (cards.length === 0) return;
-                      const ids = cards.map(c => c.id);
+                      if (!deleteTarget || deleteTarget.cards.length === 0) return;
+                      const ids = deleteTarget.cards.map(c => c.id);
                       const { error } = await supabase.from('flashcards').delete().in('id', ids);
                       if (error) toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
-                      else { toast({ title: `${cards.length} flashcards excluídos` }); loadCards(); }
+                      else { toast({ title: `${deleteTarget.cards.length} flashcards excluídos` }); loadCards(); }
+                      setDeleteTarget(null);
                     }}
                   >
                     Excluir
