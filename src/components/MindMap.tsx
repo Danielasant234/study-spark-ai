@@ -16,6 +16,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import dagre from "dagre";
+import { toPng } from "html-to-image";
 import "@xyflow/react/dist/style.css";
 
 export interface MindMapData {
