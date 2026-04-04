@@ -234,4 +234,6 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(function MindMap({ data 
       </div>
     </div>
   );
-}
+});
+
+export default MindMap;
