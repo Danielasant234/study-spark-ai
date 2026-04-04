@@ -93,7 +93,9 @@ export default function Flashcards() {
   }, [loadCards]);
 
   const subjects = Array.from(new Set(allCards.map(c => c.subject)));
-  const filteredCards = subjectFilter === 'all' ? allCards : allCards.filter(c => c.subject === subjectFilter);
+  const filteredCards = themeFilter
+    ? allCards.filter(c => c.subject === themeFilter.subject && c.theme === themeFilter.theme)
+    : subjectFilter === 'all' ? allCards : allCards.filter(c => c.subject === subjectFilter);
   const dueCards = filteredCards.filter(c => isDueForReview(c.next_review));
   const wrongCards = filteredCards.filter(c => c.times_incorrect > 0).sort((a, b) => {
     const aR = a.times_incorrect / Math.max(1, a.times_correct + a.times_incorrect);
