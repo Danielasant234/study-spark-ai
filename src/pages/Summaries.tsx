@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
-import { FileText, Download, Clock, Eye, Trash2, Loader2, X, Layers, PenTool, Network, Filter, MapPin } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { FileText, Download, Clock, Eye, Trash2, Loader2, X, Layers, PenTool, Network, Filter, MapPin, Image } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import MindMap, { type MindMapData } from "@/components/MindMap";
+import MindMap, { type MindMapData, type MindMapHandle } from "@/components/MindMap";
 import { useReveal } from "@/hooks/useReveal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -41,6 +41,7 @@ export default function Summaries() {
   const queryClient = useQueryClient();
   const [viewingMaterial, setViewingMaterial] = useState<Material | null>(null);
   const [filterSubject, setFilterSubject] = useState<string>("All");
+  const mindMapRef = useRef<MindMapHandle>(null);
   const headerRef = useReveal();
 
   const { data: materials = [], isLoading } = useQuery({
@@ -110,13 +111,23 @@ export default function Summaries() {
               {typeLabels[viewingMaterial.type] || viewingMaterial.type} · {viewingMaterial.subject || "Geral"} · {formatDate(viewingMaterial.created_at)}
             </p>
           </div>
-          <button
-            onClick={() => handleDownloadPdf(viewingMaterial)}
-            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all self-start"
-          >
-            <Download className="h-4 w-4" />
-            Download PDF
-          </button>
+          {viewingMaterial.type === "mindmap" ? (
+            <button
+              onClick={() => mindMapRef.current?.exportPng()}
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all self-start"
+            >
+              <Image className="h-4 w-4" />
+              Download PNG
+            </button>
+          ) : (
+            <button
+              onClick={() => handleDownloadPdf(viewingMaterial)}
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all self-start"
+            >
+              <Download className="h-4 w-4" />
+              Download PDF
+            </button>
+          )}
         </div>
         {viewingMaterial.type === "mindmap" ? (
           (() => {
@@ -125,7 +136,7 @@ export default function Summaries() {
               const jsonStr = raw.includes("```") ? raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim() : raw.trim();
               const parsed: MindMapData = JSON.parse(jsonStr);
               if (parsed.nodes && parsed.edges) {
-                return <MindMap data={parsed} />;
+                return <MindMap ref={mindMapRef} data={parsed} />;
               }
             } catch { /* fall through */ }
             return (

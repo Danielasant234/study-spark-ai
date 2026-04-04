@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, forwardRef, useImperativeHandle } from "react";
 import {
   ReactFlow,
   Node,
@@ -16,6 +16,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import dagre from "dagre";
+import { toPng } from "html-to-image";
 import "@xyflow/react/dist/style.css";
 
 export interface MindMapData {
@@ -121,11 +122,16 @@ function CustomNode({ data }: NodeProps) {
 
 const nodeTypes = { custom: CustomNode };
 
+export interface MindMapHandle {
+  exportPng: () => Promise<void>;
+}
+
 interface MindMapProps {
   data: MindMapData;
 }
 
-export default function MindMap({ data }: MindMapProps) {
+const MindMap = forwardRef<MindMapHandle, MindMapProps>(function MindMap({ data }, ref) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [direction, setDirection] = useState<"TB" | "LR">("LR");
 
   const initialNodes: Node[] = useMemo(
@@ -167,8 +173,20 @@ export default function MindMap({ data }: MindMapProps) {
     setEdges(le);
   }, [data, direction]);
 
+  useImperativeHandle(ref, () => ({
+    exportPng: async () => {
+      const el = containerRef.current?.querySelector(".react-flow") as HTMLElement | null;
+      if (!el) return;
+      const dataUrl = await toPng(el, { backgroundColor: "#ffffff", pixelRatio: 2 });
+      const link = document.createElement("a");
+      link.download = "mapa-mental.png";
+      link.href = dataUrl;
+      link.click();
+    },
+  }));
+
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <div className="absolute top-3 right-3 z-10 flex gap-1">
         <button
           onClick={() => setDirection("LR")}
@@ -216,4 +234,6 @@ export default function MindMap({ data }: MindMapProps) {
       </div>
     </div>
   );
-}
+});
+
+export default MindMap;
