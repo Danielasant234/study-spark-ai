@@ -118,12 +118,30 @@ export default function Summaries() {
             Download PDF
           </button>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-6 sm:p-10 shadow-sm overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16" />
-          <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-li:text-foreground/90 prose-code:text-primary relative z-10">
-            <ReactMarkdown>{viewingMaterial.content}</ReactMarkdown>
+        {viewingMaterial.type === "mindmap" ? (
+          (() => {
+            try {
+              const raw = viewingMaterial.content;
+              const jsonStr = raw.includes("```") ? raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim() : raw.trim();
+              const parsed: MindMapData = JSON.parse(jsonStr);
+              if (parsed.nodes && parsed.edges) {
+                return <MindMap data={parsed} />;
+              }
+            } catch { /* fall through */ }
+            return (
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <p className="text-sm text-muted-foreground">Não foi possível renderizar o mapa mental.</p>
+              </div>
+            );
+          })()
+        ) : (
+          <div className="rounded-2xl border border-border bg-card p-6 sm:p-10 shadow-sm overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16" />
+            <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-li:text-foreground/90 prose-code:text-primary relative z-10">
+              <ReactMarkdown>{viewingMaterial.content}</ReactMarkdown>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
