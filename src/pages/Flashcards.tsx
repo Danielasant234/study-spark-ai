@@ -67,6 +67,7 @@ export default function Flashcards() {
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ subject: string; theme?: string | null; cards: Flashcard[] } | null>(null);
 
   const loadCards = useCallback(async () => {
     setLoading(true);
