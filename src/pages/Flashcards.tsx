@@ -439,44 +439,60 @@ export default function Flashcards() {
           </div>
         ) : (
           <>
-            {/* Subject cards with theme info */}
+            {/* Subject cards with theme grouping */}
             {subjects.length > 0 && (
               <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-primary" /> Matérias
                 </h3>
-                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+                <div className="space-y-3">
                   {subjects.map(s => {
                     const sCards = allCards.filter(c => c.subject === s);
-                    const themes = Array.from(new Set(sCards.map(c => c.theme).filter(Boolean)));
+                    const themes = Array.from(new Set(sCards.map(c => c.theme ?? 'Sem tema')));
                     const sDue = sCards.filter(c => isDueForReview(c.next_review)).length;
-                    const isActive = subjectFilter === s;
+                    const isSubjectActive = subjectFilter === s && !themeFilter;
                     return (
-                      <button key={s} onClick={() => setSubjectFilter(isActive ? 'all' : s)}
-                        className={cn(
-                          'flex flex-col gap-1 rounded-xl border p-3 text-left transition-all active:scale-[0.98]',
-                          isActive 
-                            ? 'border-primary/30 bg-primary/5 shadow-sm' 
-                            : 'border-border bg-card hover:border-primary/20 hover:shadow-sm'
-                        )}>
-                        <div className="flex items-center justify-between">
-                          <span className={cn('text-sm font-semibold truncate', isActive ? 'text-primary' : 'text-foreground')}>{s}</span>
-                          <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">{sCards.length}</span>
-                        </div>
-                        {themes.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-0.5">
-                            {themes.slice(0, 3).map(t => (
-                              <span key={t} className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">{t}</span>
-                            ))}
-                            {themes.length > 3 && (
-                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">+{themes.length - 3}</span>
+                      <div key={s} className="rounded-xl border border-border overflow-hidden">
+                        <button onClick={() => { setSubjectFilter(isSubjectActive ? 'all' : s); setThemeFilter(null); }}
+                          className={cn(
+                            'flex w-full items-center justify-between p-3 text-left transition-all',
+                            isSubjectActive ? 'bg-primary/5 border-primary/20' : 'bg-card hover:bg-secondary/50'
+                          )}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={cn('text-sm font-semibold truncate', isSubjectActive ? 'text-primary' : 'text-foreground')}>{s}</span>
+                            <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">{sCards.length}</span>
+                            {sDue > 0 && (
+                              <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{sDue} pendentes</span>
                             )}
                           </div>
+                          <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', (isSubjectActive || themeFilter?.subject === s) && 'rotate-90')} />
+                        </button>
+                        {(isSubjectActive || themeFilter?.subject === s) && (
+                          <div className="border-t border-border bg-secondary/20 p-2 grid gap-1.5 grid-cols-1 sm:grid-cols-2">
+                            {themes.map(t => {
+                              const tCards = sCards.filter(c => (c.theme ?? 'Sem tema') === t);
+                              const tDue = tCards.filter(c => isDueForReview(c.next_review)).length;
+                              const isThemeActive = themeFilter?.subject === s && (themeFilter?.theme === (t === 'Sem tema' ? null : t));
+                              return (
+                                <button key={t} onClick={() => {
+                                  if (isThemeActive) { setThemeFilter(null); setSubjectFilter(s); }
+                                  else { setThemeFilter({ subject: s, theme: t === 'Sem tema' ? null : t }); setSubjectFilter(s); }
+                                }}
+                                  className={cn(
+                                    'flex items-center justify-between rounded-lg px-3 py-2 text-left transition-all active:scale-[0.98]',
+                                    isThemeActive ? 'bg-primary/10 border border-primary/30' : 'bg-card border border-border hover:border-primary/20'
+                                  )}>
+                                  <div className="min-w-0 flex-1">
+                                    <p className={cn('text-xs font-medium truncate', isThemeActive ? 'text-primary' : 'text-foreground')}>{t}</p>
+                                    {tDue > 0 && <p className="text-[10px] text-primary mt-0.5">{tDue} para revisar</p>}
+                                  </div>
+                                  <span className="shrink-0 ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{tCards.length}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
-                        {sDue > 0 && (
-                          <span className="text-[11px] text-primary font-medium mt-0.5">{sDue} para revisar</span>
-                        )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
