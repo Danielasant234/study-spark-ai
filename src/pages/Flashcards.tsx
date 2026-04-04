@@ -57,6 +57,7 @@ export default function Flashcards() {
   const [view, setView] = useState<View>('menu');
   const [mode, setMode] = useState<StudyMode>('due');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [themeFilter, setThemeFilter] = useState<ThemeFilter>(null);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionIncorrect, setSessionIncorrect] = useState(0);
   const [sessionStartTime, setSessionStartTime] = useState(0);
