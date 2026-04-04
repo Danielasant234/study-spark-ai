@@ -421,9 +421,9 @@ export default function Flashcards() {
       <div ref={contentRef} className="space-y-6">
         {subjects.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => setSubjectFilter('all')}
+            <button onClick={() => { setSubjectFilter('all'); setThemeFilter(null); }}
               className={cn('rounded-lg px-3 py-2 text-sm font-medium transition-all active:scale-95',
-                subjectFilter === 'all' ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-card text-muted-foreground hover:bg-secondary')}>
+                subjectFilter === 'all' && !themeFilter ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-card text-muted-foreground hover:bg-secondary')}>
               Todas as matérias
             </button>
           </div>
