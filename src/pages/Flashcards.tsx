@@ -46,6 +46,7 @@ const STUDY_MODES = [
 ];
 
 type View = 'menu' | 'study' | 'stats';
+type ThemeFilter = { subject: string; theme: string | null } | null;
 
 export default function Flashcards() {
   const { user } = useAuth();
