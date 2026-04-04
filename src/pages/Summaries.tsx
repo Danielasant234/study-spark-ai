@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
-import { FileText, Download, Clock, Eye, Trash2, Loader2, X, Layers, PenTool, Network, Filter, MapPin } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { FileText, Download, Clock, Eye, Trash2, Loader2, X, Layers, PenTool, Network, Filter, MapPin, Image } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import MindMap, { type MindMapData } from "@/components/MindMap";
+import MindMap, { type MindMapData, type MindMapHandle } from "@/components/MindMap";
 import { useReveal } from "@/hooks/useReveal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
