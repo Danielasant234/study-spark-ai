@@ -41,6 +41,7 @@ export default function Summaries() {
   const queryClient = useQueryClient();
   const [viewingMaterial, setViewingMaterial] = useState<Material | null>(null);
   const [filterSubject, setFilterSubject] = useState<string>("All");
+  const mindMapRef = useRef<MindMapHandle>(null);
   const headerRef = useReveal();
 
   const { data: materials = [], isLoading } = useQuery({
