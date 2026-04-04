@@ -173,8 +173,20 @@ const MindMap = forwardRef<MindMapHandle, MindMapProps>(function MindMap({ data 
     setEdges(le);
   }, [data, direction]);
 
+  useImperativeHandle(ref, () => ({
+    exportPng: async () => {
+      const el = containerRef.current?.querySelector(".react-flow") as HTMLElement | null;
+      if (!el) return;
+      const dataUrl = await toPng(el, { backgroundColor: "#ffffff", pixelRatio: 2 });
+      const link = document.createElement("a");
+      link.download = "mapa-mental.png";
+      link.href = dataUrl;
+      link.click();
+    },
+  }));
+
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <div className="absolute top-3 right-3 z-10 flex gap-1">
         <button
           onClick={() => setDirection("LR")}
